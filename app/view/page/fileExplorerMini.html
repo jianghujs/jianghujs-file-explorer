@@ -54,6 +54,61 @@
 
             <div class="flex-grow-1"></div>
           </template>
+
+          <!-- toolbar start -->
+          <div v-if="!isRecycle">
+            <input v-show="false" style="opacity: 0; position: absolute; top: -200px" ref="inputUpload" type="file" multiple
+                   @change="addFiles"/>
+            <div>
+              <template v-if="pathIsFloder">
+                <!-- 上传文件 -->
+                <v-btn :small="isMobile" v-if="path" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="path === '/'">
+                  <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
+                  <$ constantUiMap.btn.upload $>
+                </v-btn>
+                <!-- 创建文档文件 -->
+                <v-btn :small="isMobile" v-if="path" depressed @click="$emit('operation-markdown')" title="Upload Files" :disabled="path === '/'">
+                  <v-icon class="mr-1" small>mdi-text-box-plus</v-icon>
+                  新建文档
+                </v-btn>
+                <!-- 粘贴文件夹 -->
+                <v-btn :small="isMobile" v-if="path && currentCopyPath" depressed @click="pasteItem()" class="ml-1"
+                       title="<$ constantUiMap.btn.paste $>" :disabled="path === '/'">
+                  <v-icon class="mr-1" small>mdi-file-replace</v-icon>
+                  <$ constantUiMap.btn.paste $>
+                </v-btn>
+                <!-- 创建文件夹 -->
+                <v-menu v-if="path" v-model="newFolderPopper" :close-on-content-click="false" :nudge-width="200"
+                        offset-y>
+                  <template v-slot:activator="{ on }">
+                      <span>
+                          <v-btn :small="isMobile" v-if="path" depressed color="success" v-on="on" class="ml-1" :disabled="path === '/'">
+                              <v-icon class="mr-1" small>mdi-folder-multiple-plus</v-icon>
+                              <$ constantUiMap.btn.createFolder $>
+                          </v-btn>
+                      </span>
+                  </template>
+                  <v-card>
+                    <v-card-text>
+                      <v-text-field color="success" label="<$ constantUiMap.btn.fileName $>" v-model="newFolderName" hide-details
+                                    filled
+                                    single-line dense></v-text-field>
+                    </v-card-text>
+                    <v-card-actions>
+                      <div class="flex-grow-1"></div>
+                      <v-btn @click="newFolderPopper = false" :disabled="mkdirIng" depressed small><$ constantUiMap.btn.cancel $></v-btn>
+                      <v-btn color="success" :disabled="!newFolderName || mkdirIng" depressed @click="mkdir" small>
+                        <v-progress-circular v-if="mkdirIng" indeterminate :size="18" color="primary"></v-progress-circular>
+                        {{mkdirIng ? '正在创建' : '<$ constantUiMap.btn.create $>'}}
+                      </v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-menu>
+              </template>
+            </div>
+          </div>
+          <!-- toolbar end -->
+
           <!-- 搜索  -->
           <template v-if="path && isDir && !isRecycle">
             <div class="flex-grow-1"></div>
@@ -291,7 +346,10 @@
 
           </v-col>
         </v-row>
-        <v-overlay style="z-index: 10;">
+        <!-- fileBrowserUpload start -->
+        <v-overlay
+            v-if="uploadingFiles !== false"
+            style="z-index: 10;">
           <v-card flat light class="mx-auto" :loading="loading" style="width: 600px;">
             <!-- header -->
             <v-toolbar
@@ -306,7 +364,7 @@
               <v-toolbar-items>
                 <v-btn
                     text
-                    @click="cancel"
+                    @click="uploadingFiles = false""
                 >
                   <v-icon class="black--text" style="font-size: 18px;">mdi-close</v-icon>
                 </v-btn>
@@ -390,6 +448,7 @@
             </v-card-text>
           </v-card>
         </v-overlay>
+        <!-- fileBrowserUpload end -->
       </v-card>
       <div v-else class="d-flex align-center pa-10" style="justify-content: center">
         <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
@@ -473,6 +532,7 @@ const fileIcons = {
   // other: "mdi-file-outline"
 };
 
+const imageMimeTypes = ["image/png", "image/jpeg"];
 
 new Vue({
   el: '#app',
@@ -555,6 +615,9 @@ new Vue({
     uploading: false,
     progress: 0,
     listItems: [],
+    newFolderPopper: false,
+    newFolderName: "",
+    mkdirIng: false,
     dayjs: dayjs
   }),
   computed: {
@@ -639,6 +702,9 @@ new Vue({
       }
       return '';
     },
+    pathIsFloder() {
+      return this.path[this.path.length - 1] === "/";
+    },
   },
   watch: {
     async groupId(value, oValue) {
@@ -670,6 +736,15 @@ new Vue({
         this.getMarkdownDetail();
       } else {
         this.viewingMarkdown = null;
+      }
+    },
+    uploadingFiles: {
+      deep: true,
+      immediate: true,
+      async handler() {
+        this.loading = true;
+        this.listItems = await this.filesMap(this.uploadingFiles);
+        this.loading = false;
       }
     }
   },
@@ -941,7 +1016,7 @@ new Vue({
       })).data.appData.resultData.rows;
     },
     async deleteItem(item) {
-      let confirmed = await this.$refs.confirm.open(
+      let confirmed = await this.open(
         false,
         `<$ constantUiMap.btn.sureDelete $>${item.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"
         }? <br/> <em>${item.basename}</em>`
@@ -1146,7 +1221,7 @@ new Vue({
     async upload() {
       this.uploading = true;
       const that = this;
-      for (let file of this.files) {
+      for (let file of this.uploadingFiles) {
         window.vtoast.loading(`${file.name} <$ constantUiMap.btn.uploadProgress $>: 0.00%`);
         await window.jianghuAxios.httpUploadByStream({
           file,
@@ -1164,6 +1239,52 @@ new Vue({
       }
       this.uploading = false;
       this.uploaded()
+    },
+    closePicker({path}) {
+      this.closeMaterialPicker()
+    },
+    goUp() {
+      let segments = this.pathSegments;
+      let path;
+      if (segments.length === 1)
+        path = "/";
+      else
+        path = segments[segments.length - 2].path
+      this.changePath(path);
+    },
+    async addFiles(event) {
+      this.addUploadingFiles(event.target.files)
+      this.$refs.inputUpload.value = "";
+    },
+    async mkdir() {
+      this.mkdirIng = true;
+      await this.syncMkdirRequest();
+      this.refreshPending = true
+      this.newFolderName = "";
+      this.mkdirIng = false;
+      this.newFolderPopper = false;
+    },
+    async syncMkdirRequest() {
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'mkdir',
+            actionData: {path: this.path + this.newFolderName},
+          }
+        }
+      })
+    },
+    async clearRecycle() {
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'clearRecycle',
+            actionData: {path: this.path},
+          }
+        }
+      })
     },
   },
 })
@@ -1263,4 +1384,17 @@ td:not(:first-child):not(.v-picker td), th:not(:first-child):not(.v-picker th) {
   max-height: 250px;
   overflow-y: auto;
 }
+
+.storage-select-list .v-list-item--disabled {
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #fff;
+}
+
+.storage-select-list .v-list-item--disabled .v-icon {
+  color: #fff;
+}
+.v-breadcrumbs {
+  margin-top: -3px;
+}
+
 </style>
