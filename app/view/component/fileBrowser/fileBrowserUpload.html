@@ -1,0 +1,227 @@
+<template id="fileBrowser-upload">
+  <v-overlay style="z-index: 10;">
+    <v-card flat light class="mx-auto" :loading="loading" style="width: 600px;">
+      <!-- header -->
+      <v-toolbar
+          flat
+          dense
+          dark
+          style="background-color: #fff;">
+        <div class="black--text ml-2" style="font-size: 16px;"><$ constantUiMap.btn.upload $><$ constantUiMap.btn.file
+          $>
+        </div>
+        <v-spacer></v-spacer>
+        <v-toolbar-items>
+          <v-btn
+              text
+              @click="cancel"
+          >
+            <v-icon class="black--text" style="font-size: 18px;">mdi-close</v-icon>
+          </v-btn>
+        </v-toolbar-items>
+      </v-toolbar>
+      <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
+
+      <!-- 按钮区 -->
+      <v-card-text>
+        <input
+            v-show="false"
+            ref="inputUpload"
+            type="file"
+            multiple
+            @change="add"
+        />
+        <v-btn color="success" depressed @click="$refs.inputUpload.click()"
+               title="<$ constantUiMap.common.select $><$ constantUiMap.btn.file $>">
+          <v-icon class="mr-1" small>mdi-file-plus</v-icon>
+          <$ constantUiMap.common.select $><$ constantUiMap.btn.file $>
+        </v-btn>
+        <v-btn depressed @click="upload" class="ml-1" :disabled="!files || files.length === 0"
+               title="<$ constantUiMap.btn.uploadAll $>">
+          <v-icon class="mr-1" small>mdi-file-upload</v-icon>
+          <$ constantUiMap.btn.uploadAll $>
+        </v-btn>
+        <v-btn depressed @click="clear" class="ml-1" :disabled="!files || files.length === 0"
+               title="<$ constantUiMap.btn.removeAll $>">
+          <v-icon class="mr-1" small>mdi-file-remove</v-icon>
+          <$ constantUiMap.btn.removeAll $>
+        </v-btn>
+      </v-card-text>
+
+      <!-- 文件列表 -->
+      <v-card-text v-if="listItems.length" class="py-0 files-list-wrapper">
+        <v-list v-if="listItems.length">
+          <v-list-item v-for="(file, index) in listItems" :key="index"
+                       style="background-color: #f5f8fa;border-radius: 6px;" class="mb-2">
+            <v-list-item-avatar>
+              <v-img v-if="file.preview" :src="file.preview"></v-img>
+              <v-icon
+                  v-else
+                  v-text="icons[file.extension] || 'mdi-file'"
+                  class="mdi-36px"
+                  color="grey lighten-1"
+              ></v-icon>
+            </v-list-item-avatar>
+            <v-list-item-content>
+              <v-list-item-title v-text="file.name"></v-list-item-title>
+              <v-list-item-subtitle>{{ formatBytes(file.size) }} - {{ file.type }}</v-list-item-subtitle>
+            </v-list-item-content>
+            <v-list-item-action class="d-flex">
+              <v-btn icon @click="remove(index)"
+                     small
+              >
+                <v-icon samll style="font-size: 16px;">mdi-close</v-icon>
+              </v-btn>
+            </v-list-item-action>
+          </v-list-item>
+        </v-list>
+      </v-card-text>
+
+      <!-- 空提示 -->
+      <v-card-text v-else class="py-6 text-center">
+        暂无文件~
+      </v-card-text>
+
+      <!-- footer -->
+      <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
+      <v-card-text class="py-3 d-flex justify-space-between" style="color:#A1A5B7;">
+        <div>
+          <span><$ constantUiMap.btn.uploadTo $>:</span>
+          <span class="ml-2">{{ path }}</span>
+        </div>
+        <div>
+          <span v-if="maxUploadFilesCount"><$ constantUiMap.btn.maxFilesCount $>: {{ maxUploadFilesCount }}</span>
+          <span v-if="maxUploadFileSize"><$ constantUiMap.btn.maxFileSize $>: {{
+              formatBytes(maxUploadFileSize)
+            }}</span>
+        </div>
+      </v-card-text>
+    </v-card>
+  </v-overlay>
+</template>
+
+<script>
+const imageMimeTypes = ["image/png", "image/jpeg"];
+Vue.component("file-browser-upload", {
+  vuetify: new Vuetify(),
+  name: 'file-browser-upload',
+  template: '#fileBrowser-upload',
+  props: {
+    path: String,
+    storage: String,
+    endpoint: Object,
+    files: {type: Array, default: () => []},
+    icons: Object,
+    axios: Function,
+    maxUploadFilesCount: {type: Number, default: 0},
+    maxUploadFileSize: {type: Number, default: 0}
+  },
+  data() {
+    return {
+      loading: false,
+      uploading: false,
+      progress: 0,
+      listItems: []
+    };
+  },
+  methods: {
+    async filesMap(files) {
+      let promises = Array.from(files).map(file => {
+        let result = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          extension: file.name.split(".").pop()
+        };
+        return new Promise(resolve => {
+          if (!imageMimeTypes.includes(result.type)) {
+            return resolve(result);
+          }
+          var reader = new FileReader();
+          reader.onload = function (e) {
+            result.preview = e.target.result;
+            resolve(result);
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      return await Promise.all(promises);
+    },
+
+    async add(event) {
+      let files = Array.from(event.target.files);
+      this.$emit("add-files", files);
+      this.$refs.inputUpload.value = "";
+    },
+
+    remove(index) {
+      this.$emit("remove-file", index);
+      this.listItems.splice(index, 1);
+    },
+
+    clear() {
+      this.$emit("clear-files");
+      this.listItems = [];
+    },
+
+    cancel() {
+      this.$emit("cancel");
+    },
+
+    async upload() {
+      this.uploading = true;
+      const that = this;
+      for (let file of this.files) {
+        window.vtoast.loading(`${file.name} <$ constantUiMap.btn.uploadProgress $>: 0.00%`);
+        await window.jianghuAxios.httpUploadByStream({
+          file,
+          filenameStorage: file.name,
+          fileDirectory: '/cloudDrive' + this.path,
+          onProgress: (total, loaded) => {
+            // TODO: that.progress <v-overlay :value="uploading"  ==>  不好使
+            that.progress = Number((loaded * 100 / total).toFixed(2));
+            window.vtoast.loading(`${file.name} <$ constantUiMap.btn.uploadProgress $>: ${that.progress}%`);
+            if (loaded === total) {
+              window.vtoast.success(`${file.name} <$ constantUiMap.btn.uploadProgress $>: 100%`);
+            }
+          }
+        })
+      }
+      this.uploading = false;
+      this.$emit("uploaded");
+    },
+    formatBytes(bytes, decimals = 2) {
+      if (bytes === 0) return '0 bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+  },
+  watch: {
+    files: {
+      deep: true,
+      immediate: true,
+      async handler() {
+        this.loading = true;
+        this.listItems = await this.filesMap(this.files);
+        this.loading = false;
+      }
+    }
+  }
+});
+</script>
+
+<style scoped>
+::v-deep .v-overlay__content {
+  width: 90%;
+  max-width: 500px;
+}
+
+::v-deep .v-overlay__content .files-list-wrapper {
+  max-height: 250px;
+  overflow-y: auto;
+}
+</style>

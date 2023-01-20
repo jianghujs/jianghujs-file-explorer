@@ -1,0 +1,205 @@
+<script>
+class JhTagEngine {
+  currentArticleContentSection;
+  articleContentText;
+
+  // 替换正则特殊符号
+  replaceSpecialChat(string) {
+    return string.replace(/\[/g, '___【___').replace(/]/g, '___】___').replace(/\//g, '___、___');
+  };
+
+  // 还原正则特殊符号
+  restoreSpecialChat(string) {
+    return string.replace(/___n___/g, '\n').replace(/___【___/g, '[').replace(/___】___/g, ']').replace(/___、___/g, '/');
+  };
+
+  // 提取articleQueryList
+  async jhArticleQueryTagListHandle() {
+    this.currentArticleContentSection.forEach((articleItem, index) => {
+      articleItem.content = articleItem.content.replace(/\n/g, '___n___')
+      const _articleQueryList = articleItem.content.match(/\[jh-article-query.+\[\/jh-article-query\]/g);
+      if(_articleQueryList && _articleQueryList.length) {
+        articleItem.children = [];
+        _articleQueryList.forEach((query, qIndex) => {
+          // 1. 提取query的内容
+          let queryContent = query.replace(/(.*)\[jh-article-query]/, '').replace(/(.*)\[\/jh-article-query]/, '$1');
+          queryContent = queryContent.replace(/___n___/g, '');
+          const queryMap = JSON.parse(queryContent);
+          if(query === articleItem.content) {
+            articleItem.type = 'articleQuery';
+            articleItem.params = queryMap;
+            articleItem.children = null;
+          } else {
+            // 转化内容特殊符号
+            articleItem.content = this.replaceSpecialChat(articleItem.content);
+            // 分割内容
+            let resourceContent = articleItem.content;
+            if(articleItem.children.length) {
+              resourceContent = articleItem.children.pop();
+            }
+            const contentList = resourceContent.split(this.replaceSpecialChat(query));
+            // 把每次split的list拼接到children
+            articleItem.children = articleItem.children.concat(contentList)
+            // 同时在最后一条的位置上拼接上query类型数据
+            articleItem.children.splice(articleItem.children.length - 1, 0, {
+              type: 'articleQuery', params: queryMap
+            });
+          }
+        })
+        if(articleItem.children) {
+          articleItem.children = articleItem.children.map((content, index) => {
+            if (typeof content == 'string') {
+              return {
+                type: 'text', content: this.restoreSpecialChat(content)
+              };
+            }
+            return content;
+          })
+        }
+      } else {
+        articleItem.content = this.restoreSpecialChat(articleItem.content);
+      }
+    })
+  };
+
+
+  // jhPdfViewer [jh-pdf-viewer src="/__appId__/upload\articleMaterial\30009\1668869349745_生态高尔夫与高尔夫球场环境认证_戴子云.pdf"/]
+  async jhPdfViewer() {
+    // 如存在pdf 则把 原有content index 下的 {type: 'text', src: 'xxx'} 替换为 {type: 'text', src: 'xxx'},{type: 'pdfViewer', src: 'xxx'},{type: 'text', src: 'xxx'}
+    // content 数组从后往前替换避免 index 变化问题
+    const replaceArray = [];
+    this.currentArticleContentSection.forEach((articleItem, index) => {
+      let content = articleItem.content;
+      const pdfObj = {
+        contentIndex: index,
+        content: []
+      };
+      const _pdfViewList = articleItem.content.match(/\[jh-pdf-viewer.+\/]/g);
+      if(_pdfViewList && _pdfViewList.length) {
+        _pdfViewList.forEach((query, qIndex) => {
+          pdfObj.content.pop();
+          // 1. 提取标签/src 的内容 {src: 'xxx'}
+          const params = this.extractedPdfViewer(query);
+
+          // 2. 提取 pdf-viewer 前的content text内容 和自己
+          const contentArr = content.split(query);
+          pdfObj.content.push({ type: 'text', content: contentArr[0] });
+          pdfObj.content.push({ type: 'pdfViewer', params });
+
+          // 3. push 暂存剩余文本至最后一个
+          contentArr.splice(0, 1)
+          content = contentArr.join(query);
+          pdfObj.content.push({ type: 'text', content });
+        })
+      }
+      if(pdfObj.content.length) {
+        replaceArray.unshift(pdfObj);
+      }
+    })
+    // replaceArray [{contentIndex: 1, content: [{type: 'text', content: 'xxx'},{type: 'pdfViewer', src: 'xxx'},{type: 'text', content: 'xxx'}]}]
+    replaceArray.forEach((item, index) => {
+      this.currentArticleContentSection.splice(item.contentIndex, 1, ...item.content);
+    })
+  };
+
+  lineToUpper(split, str) {
+    return str.split(split).map((e, i) => {
+      return i ? e.slice(0, 1).toUpperCase() + e.slice(1) : e
+    }).join('')
+  };
+
+  // 提取toggleList
+  async jhTagTemplateHandler(_articleContentText) {
+    this.articleContentText = _articleContentText || '';
+    // \n会导致正则失败
+    this.articleContentText = this.articleContentText.replace(/\n/g, '___n___');
+    // 1. 提取toggle标签对
+    const _toggleList = this.articleContentText.match(/\[jh-toggle[\s\S]*?\[\/jh-toggle\]/g);
+    // [、]、/ 这些正则符号会导致替换失败，使用替代符号暂时替代
+    this.articleContentText = this.replaceSpecialChat(this.articleContentText);
+    // toggleList 未必会包含articleQueryList
+    if (_toggleList && _toggleList.length) {
+      _toggleList.forEach((item, index) => {
+        // 替换的正则，同上处理
+        const regExp = this.replaceSpecialChat(item);
+        // toggle标签分割内容
+        this.splitContent(index, regExp);
+        this.covertContentString2Json();
+        this.extractedToggle(item);
+      })
+    } else {
+      this.currentArticleContentSection = [{
+        type: 'text', content: this.replaceSpecialChat(this.articleContentText)
+      }]
+    }
+    // 提取articleQuery
+    this.jhArticleQueryTagListHandle();
+    this.jhPdfViewer();
+    return this.currentArticleContentSection;
+  };
+
+  // 分割content body数组
+  splitContent(index, regExp) {
+    if (index === 0) {
+      this.currentArticleContentSection = this.articleContentText.split(regExp);
+    } else {
+      const lastArticleContent = this.replaceSpecialChat(this.currentArticleContentSection.pop().content.replace(/\n/g, '___n___'));
+      const lastArticleContentArr = lastArticleContent.split(regExp)
+      this.currentArticleContentSection = this.currentArticleContentSection.concat(lastArticleContentArr);
+    }
+  }
+
+  covertContentString2Json() {
+    this.currentArticleContentSection = this.currentArticleContentSection.map((content, index) => {
+      if (typeof content == 'string') {
+        return {
+          type: 'text', content: this.restoreSpecialChat(content)
+        };
+      }
+      return content;
+    })
+  }
+
+  extractedToggle(item) {
+    // 通toggle中提取内容
+    let toggleDomStr = item.split(']')[0].substring('[jh-toggle '.length);
+    let toggleDom = {};
+
+    const attrList = toggleDomStr.match(/['"][\s\S]*?['"]/g);
+    attrList.forEach(e => {
+      e = e.replace(/['"]/g, '');
+      const targetStr = e.replace(/\s/g, '');
+      toggleDomStr = toggleDomStr.replace(e, targetStr)
+    })
+    toggleDomStr.split(' ').forEach(e => {
+      toggleDom = Object.assign(toggleDom, {
+        [this.lineToUpper('-', e.split('=')[0])]: e.split('=')[1].replace(/"/g, '')
+      })
+    })
+    let toggleContent = item.split(']').slice(1).join(']').replace(/(.*)\[\/jh-toggle]/, '$1');
+    // toggleContent = toggleContent.slice(toggleContent.length - 1, 1);
+    this.currentArticleContentSection.splice(this.currentArticleContentSection.length - 1, 0, {
+      type: 'toggle', content: this.restoreSpecialChat(toggleContent), params: toggleDom
+    });
+  }
+
+  extractedPdfViewer(item) {
+    // 通toggle中提取内容
+    let domStr = item.split('/]')[0].substring('[jh-pdf-viewer '.length);
+    let dom = {};
+
+    const attrList = domStr.match(/['"][\s\S]*?['"]/g);
+    attrList.forEach(e => {
+      e = e.replace(/['"]/g, '');
+      const targetStr = e.replace(/\s/g, '');
+      domStr = domStr.replace(e, targetStr)
+    })
+    domStr.split(' ').forEach(e => {
+      dom = Object.assign(dom, {
+        [this.lineToUpper('-', e.split('=')[0])]: e.split('=')[1].replace(/"/g, '')
+      })
+    })
+    return dom;
+  }
+}
+</script>

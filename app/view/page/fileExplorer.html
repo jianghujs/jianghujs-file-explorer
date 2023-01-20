@@ -1,0 +1,566 @@
+{% extends 'template/jhTemplateV3.html'%}
+{% block vue_template %}
+
+<jh-layout-v3>
+<!-- 页面主要内容 -->
+<v-container class="fullScreen d-flex flex-column pa-xs-0 pa-0">
+  <v-card style="padding: 10px 20px">
+<!--    <file-browser :roleId="currentCloudDriveRoleId"-->
+<!--                  :groupId="currentCloudDriveId"></file-browser>-->
+    <div>
+      <v-card class="d-flex flex-column custom-cloudDrive" flat v-if="activeStorage">
+        <v-toolbar flat dense class="px-0 mt-2 custom-toolbar">
+          <template v-if="!(path && isDir) || isRecycle">
+<!--            Breadcrumbs.html start -->
+            <div>
+              <v-menu offset-y v-if="activeStorage.length > 1">
+                <template v-slot:activator="{ on }">
+                  <v-btn icon class="storage-select-button mr-3" v-on="on">
+                    <v-icon>mdi-arrow-down-drop-circle-outline</v-icon>
+                  </v-btn>
+                </template>
+                <v-list class="storage-select-list">
+                  <v-list-item v-for="(item, index) in activeStorage" :key="index"
+                               :disabled="item.code === storageObject.code" @click="changeStorage(item.code)">
+                    <v-list-item-icon>
+                      <v-icon v-text="item.icon"></v-icon>
+                    </v-list-item-icon>
+                    <v-list-item-title>{{ item.name }}</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+              <div class="d-flex">
+                <v-btn height="26" color="#E8F5E9" style="margin-top: 1px;" @click="fileBack" class="ma-0 success--text elevation-0">
+                  <v-icon class="mr-1" small>mdi-arrow-left</v-icon>
+                  上一级
+                </v-btn>
+                <v-breadcrumbs class="py-0 px-4" style="margin-top: 1px; margin-left: 10px; background-color: #E8F5E9; border-radius: 4px;word-break: break-all;">
+                  <v-breadcrumbs-item :input-value="path === '/'" @click="changePath('/')" role="button">
+                    <v-icon class="mr-2" color="success">{{ storageObject.icon }}</v-icon>
+                    <span style="font-size: 14px;" class="font-weight-medium success--text">{{ storageObject.name.endsWith('_recycle') ? '回收站' : storageObject.name }}</span>
+                  </v-breadcrumbs-item>
+                  <v-breadcrumbs-item
+                      v-for="(segment, index) in pathSegments"
+                      :input-value="index === pathSegments.length - 1" :key="index + '-btn'"
+                      @click="changePath(segment.path)"
+                      role="button">
+                    <v-icon color="success">mdi-chevron-right</v-icon>
+                    <span style="font-size: 14px;" class="ml-2 font-weight-medium success--text">{{ segment.name.endsWith('_recycle') ? '回收站' : segment.name }}</span>
+                  </v-breadcrumbs-item>
+                </v-breadcrumbs>
+              </div>
+            </div>
+<!--            Breadcrumbs.html end -->
+
+            <div class="flex-grow-1"></div>
+          </template>
+          <toolbar
+              ref="toolbar"
+              v-if="!isRecycle"
+              :operation-option="operationOption"
+              :path="path"
+              :disabled="refreshPending"
+              :storages="storagesArray"
+              :storage="activeStorage"
+              :endpoints="endpoints"
+
+              :current-copy-path="currentCopyPath"
+              v-on:storage-changed="storageChanged"
+              v-on:path-changed="pathChanged"
+              v-on:copy-item="copyItem"
+              v-on:cut-item="cutItem"
+              v-on:paste-item="pasteItem"
+              v-on:add-files="addUploadingFiles"
+              v-on:folder-created="refreshPending = true"
+              v-on:operation-markdown="operationMarkdown"
+              v-on:close-material-picker="closeMaterialPicker"
+          >
+          </toolbar>
+          <!-- 搜索  -->
+          <template v-if="path && isDir && !isRecycle">
+            <div class="flex-grow-1"></div>
+            <div style="width: 300px;">
+              <v-text-field
+                  dense
+                  filled
+                  single-line
+                  hide-details="auto"
+                  label="Search Files & Folders" v-model="filter" prepend-inner-icon="mdi-magnify"
+                  color="success"></v-text-field>
+            </div>
+          </template>
+        </v-toolbar>
+        <v-row no-gutters class="custom-list-panel">
+          <v-col class="mt-2">
+            <v-toolbar flat dense v-if="(path && isDir) && !isRecycle" class="pr-4 table-toolbar">
+              <breadcrumbs
+                  :path="path"
+                  :storages="storagesArray"
+                  :storage="activeStorage"
+                  v-on:storage-changed="storageChanged"
+                  v-on:path-changed="pathChanged"
+              >
+              </breadcrumbs>
+              <v-spacer></v-spacer>
+              <template>
+                <v-chip
+                    class="ma-2 pa-2"
+                    color="green"
+                    text-color="white"
+                    small>
+                  {{ totalCount }} items
+                </v-chip>
+                <v-btn icon @click="refreshPending = true" small>
+                  <v-progress-circular indeterminate v-if="refreshPending" :size="20" color="primary"></v-progress-circular>
+                  <v-icon v-else>mdi-refresh</v-icon>
+                </v-btn>
+              </template>
+            </v-toolbar>
+            <list
+                ref="list"
+                :operation-option="operationOption"
+                :path="path"
+                :storage="activeStorage"
+                :icons="icons"
+                :endpoints="endpoints"
+                :role-id="roleId"
+
+                :refresh-pending="refreshPending"
+                :filter="filter"
+                v-on:path-changed="pathChanged"
+                v-on:copy-item="copyItem"
+                v-on:cut-item="cutItem"
+                v-on:edit-item="editItem"
+                v-on:paste-item="pasteItem"
+                v-on:loading="loadingChanged"
+                v-on:data-loading="onDataLoading"
+                v-on:operation-markdown="operationMarkdown"
+                v-on:refreshed="refreshPending = false"
+                v-on:file-deleted="refreshPending = true"
+                style="width: 100%;"
+            ></list>
+          </v-col>
+        </v-row>
+        <file-browser-upload
+            v-if="uploadingFiles !== false"
+            :path="path"
+            :storage="activeStorage"
+            :files="uploadingFiles"
+            :icons="icons"
+
+            :endpoint="endpoints.upload"
+            :max-upload-files-count="maxUploadFilesCount"
+            :max-upload-file-size="maxUploadFileSize"
+            v-on:add-files="addUploadingFiles"
+            v-on:remove-file="removeUploadingFile"
+            v-on:clear-files="uploadingFiles = []"
+            v-on:cancel="uploadingFiles = false"
+            v-on:uploaded="uploaded"
+        ></file-browser-upload>
+      </v-card>
+      <div v-else class="d-flex align-center pa-10" style="justify-content: center">
+        <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
+        <span>加载中</span>
+      </div>
+      <md-dialog v-model="isMdEditShow" @save-content="saveContent" :default-md="willEditMd"></md-dialog>
+    </div>
+  </v-card>
+</v-container>
+
+<!-- 新增 -->
+
+<!-- 编辑抽屉 -->
+
+</jh-layout-v3>
+
+{% endblock %}
+
+{% block vue_body %}
+{% set componentFolder = 'component' %}
+<!-- 网盘 -->
+
+{% include 'component/fileBrowser/Confirm.html' %}
+{% include 'component/fileBrowser/List.html' %}
+{% include 'component/fileBrowser/Toolbar.html' %}
+{% include 'component/fileBrowser/Tree.html' %}
+{% include 'component/fileBrowser/fileBrowserUpload.html' %}
+{% include 'component/fileBrowser/Breadcrumbs.html' %}
+{% include 'component/fileBrowser/mdEdit.html' %}
+{% include 'component/markdown2html/md2html.html' %}
+<script type="module">
+const availableStorages = [
+  {
+    name: "网盘",
+    code: "cloudDrive",
+    icon: "mdi-cloud-circle"
+  }
+];
+
+const endpoints = {
+  list: {url: "/storage/{storage}/list?path={path}", method: "get"},
+  upload: {url: "/storage/{storage}/upload?path={path}", method: "post"},
+  mkdir: {url: "/storage/{storage}/mkdir?path={path}", method: "post"},
+  delete: {url: "/storage/{storage}/delete?path={path}", method: "post"}
+};
+
+const fileIcons = {
+  // zip: "mdi-folder-zip-outline",
+  // rar: "mdi-folder-zip-outline",
+  // htm: "mdi-language-html5",
+  // html: "mdi-language-html5",
+  // js: "mdi-nodejs",
+  // json: "mdi-json",
+  md: "mdi-sticker-text-outline",
+  // pdf: "mdi-file-pdf",
+  png: "mdi-file-image",
+  jpg: "mdi-file-image",
+  jpeg: "mdi-file-image",
+  mp4: "mdi-filmstrip",
+  mkv: "mdi-filmstrip",
+  avi: "mdi-filmstrip",
+  wmv: "mdi-filmstrip",
+  mov: "mdi-filmstrip",
+  txt: "mdi-file-document-outline",
+  // xls: "mdi-file-excel",
+  // other: "mdi-file-outline"
+};
+
+
+new Vue({
+  el: '#app',
+  template: '#app-template',
+  vuetify: new Vuetify(),
+  data: () => ({
+    // 表格相关数据
+    currentCloudDriveId: "cloudDemo",
+    currentCloudDriveRoleId: "cloudRole",
+
+    storages: availableStorages.map(item => item.code).join(","),
+    // code of default storage
+    groupId: "cloudDemo",
+    // 成员的角色: teacher / student
+    roleId: "cloudRole",
+    // 根目录
+    storage: "cloudDrive",
+    // show tree view
+    tree: true,
+    // file icons set
+    icons: fileIcons,
+    // custom backend endpoints
+    endpoints: endpoints,
+    // custom configuration for internal axios instance
+    // max files count to upload at once. Unlimited by default
+    maxUploadFilesCount: 0,
+    // max file size to upload. Unlimited by default
+    maxUploadFileSize: 1024 * 1024 * 1024,
+    imageMaxUploadFileSize: 700 * 1024,
+
+    materialType: '',
+    operationOption: {delete: true, copy: true, recycle: true, renameFile: true},
+
+    filter: "",
+    totalCount: 0,
+    loading: 0,
+    path: "/",
+    isMdEditShow: false,
+    activeStorage: null,
+    uploadingFiles: false, // or an Array of files
+    // 用于让子组件做监听，有变化时对当前目录做刷新
+    refreshPending: false,
+    axiosInstance: null,
+    currentCopyPath: '',
+    willEditMd: null,
+    moreBtn: [{value: 'mkDir', title: '创建文件夹'}, {value: 'rename', title: '重命名'}, {
+      value: 'cut',
+      title: '剪切'
+    }, {value: 'paste', title: '粘贴'}],
+  }),
+  computed: {
+    isRecycle() {
+      return this.path.endsWith('_recycle/');
+    },
+    storagesArray() {
+      let storageCodes = this.storages.split(",");
+      const result = [];
+      storageCodes.forEach(code => {
+        result.push(availableStorages.find(item => item.code == code));
+      });
+      return result;
+    },
+    isMobile() {
+      return window.innerWidth < 500;
+    },
+    isDir() {
+      return this.path[this.path.length - 1] === "/";
+    },
+    // Breadcrumbs.html
+    pathSegments() {
+      let path = "/",
+          isFolder = this.path[this.path.length - 1] === "/",
+          segments = this.path.split("/").filter(item => item);
+
+      segments = segments.map((item, index) => {
+        path +=
+            item + (index < segments.length - 1 || isFolder ? "/" : "");
+        return {
+          name: item,
+          path
+        };
+      });
+
+      return segments;
+    },
+    storageObject() {
+      return this.storagesArray.find(item => item.code == this.activeStorage);
+    }
+  },
+  watch: {
+    async groupId(value, oValue) {
+      if (value && value !== oValue && this.path.indexOf(`/${this.groupId}/`) === -1) {
+        this.activeStorage = this.storage;
+        debugger
+        this.path = `/${this.groupId}/`
+      }
+    },
+    refreshPending(value, oValue) {
+      if(!value && oValue) {
+      }
+    }
+  },
+  async created() {
+    this.activeStorage = this.storage;
+    this.path = this.groupId ? `/${this.groupId}/` : '/';
+    await this.doUiAction('refreshTableData');
+  },
+  mounted() {},
+  methods: {
+    async doUiAction(uiActionId, uiActionData) {
+      switch (uiActionId) {
+        case 'refreshTableData':
+          break;
+        default:
+          console.error("[doUiAction] uiActionId not find", { uiActionId });
+          break;
+      }
+    },
+
+    // 创建/修改文本文档
+    operationMarkdown(item) {
+      this.isMdEditShow = true;
+    },
+
+    async saveContent({content, mdName}) {
+      this.$refs.list.addTempMdFile(mdName);
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'saveMarkdown',
+            actionData: {
+              content,
+              name: mdName,
+              path: this.path
+            },
+          }
+        }
+      });
+      this.willEditMd = null;
+      this.isMdEditShow = false;
+      this.refreshPending = true;
+    },
+    onDataLoading(event) {
+      this.refreshPending = event;
+    },
+    moreBtnAction(btn) {
+      switch (btn.value) {
+        case 'mkDir':
+          console.log(this.$refs.toolbar);
+          this.$refs.toolbar && this.$refs.toolbar.mkdir();
+          break;
+      }
+    },
+    closeMaterialPicker() {
+    },
+    loadingChanged(loading) {
+      if (loading) {
+        this.loading++;
+      } else if (this.loading > 0) {
+        this.loading--;
+      }
+      this.totalCount = this.$refs.list.tableData.length
+    },
+    storageChanged(storage) {
+      this.activeStorage = storage;
+    },
+    checkImageMaxUploadFileSize(files) {
+      if (this.imageMaxUploadFileSize) {
+        const checkImageSizeError = this.materialType === 'image' && files.find(
+            file => file.size > this.imageMaxUploadFileSize
+        )
+        if (checkImageSizeError) {
+          window.vtoast.fail('部分图片文件大于 700K, 请重新压缩过后再上传素材');
+          files = files.filter(
+              file => file.size <= this.imageMaxUploadFileSize
+          );
+        }
+      }
+    },
+    addUploadingFiles(files) {
+      files = Array.from(files);
+
+      this.checkImageMaxUploadFileSize(files);
+
+      if (this.uploadingFiles === false) {
+        this.uploadingFiles = [];
+      }
+
+      if (this.maxUploadFilesCount && this.uploadingFiles.length + files.length > this.maxUploadFilesCount) {
+        files = files.slice(0, this.maxUploadFilesCount - this.uploadingFiles.length);
+      }
+
+      this.uploadingFiles.push(...files);
+    },
+    removeUploadingFile(index) {
+      this.uploadingFiles.splice(index, 1);
+    },
+    uploaded() {
+      this.uploadingFiles = false;
+      this.refreshPending = true;
+    },
+    pathChanged(path) {
+      this.path = path;
+    },
+    async syncMoveOrCopyFileRequest(fromDir, toDir, filename) {
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: this.pasteMode === 'cut' ? 'moveFile' : 'copyFile',
+            actionData: {
+              fromDir,
+              toDir,
+              filename,
+            },
+          }
+        }
+      });
+    },
+    refreshData(fromDir, toDir) {
+      this.$refs.list.dataLoading = true;
+      if (this.pasteMode === 'cut') {
+        this.currentCopyPath = null
+      }
+    },
+    async pasteItem() {
+      window.vtoast.loading(this.pasteMode === 'cut' ? '文件移动中' : '文件复制中');
+      if(this.refreshPending) {
+        requestAnimationFrame(() => {
+          this.pasteItem();
+        })
+        return;
+      }
+      const fromDir = this.currentCopyPath.substring(0, this.currentCopyPath.lastIndexOf('/') + 1);
+      const toDir = this.path;
+      const filename = this.currentCopyPath.substring(this.currentCopyPath.lastIndexOf('/') + 1);
+      this.$refs.list.syncMoveOrCopyFileToCache(fromDir, toDir, filename, this.pasteMode === 'cut' ? 'moveFile' : 'copyFile');
+      await this.syncMoveOrCopyFileRequest(fromDir, toDir, filename);
+      window.vtoast.success(this.pasteMode === 'cut' ? '文件移动成功' : '文件复制成功');
+      this.refreshData(fromDir, toDir);
+    },
+    async editItem({content, path}) {
+      console.log('editItem', path)
+      this.willEditMd = {
+        content: content,
+        name: path.substring(path.lastIndexOf('/') + 1)
+      };
+      this.isMdEditShow = true;
+    },
+    cutItem(path) {
+      this.currentCopyPath = path
+      this.pasteMode = 'cut'
+      window.vtoast.success('<$ constantUiMap.btn.cut $>');
+      console.log('cutItem', this.currentCopyPath)
+    },
+    copyItem(path) {
+      this.currentCopyPath = path
+      this.pasteMode = 'copy'
+      window.vtoast.success('<$ constantUiMap.btn.copied $>');
+      console.log('copyItem', this.currentCopyPath)
+    },
+    readFolderByPath(path) {
+    },
+    // Breadcrumbs.html
+    fileBack() {
+      let path = this.path;
+      if(path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      if(path !== '') {
+        this.pathChanged('path.substring(0, path.lastIndexOf(\'/\') + 1)');
+      } else {
+        this.pathChanged("/")
+      }
+    },
+    changeStorage(code) {
+      if (this.activeStorage != code) {
+        this.storageChanged(code)
+        this.pathChanged("")
+      }
+    },
+    changePath(path) {
+      this.pathChanged(path)
+    }
+  }
+})
+</script>
+
+{% endblock %}
+
+<style>
+.table-toolbar .v-toolbar__content {
+  height: 30px !important;
+}
+.v-text-field--filled>.v-input__control>.v-input__slot{
+  background: #f5f8fa !important;
+}
+.v-text-field>.v-input__control>.v-input__slot:before,
+.v-text-field>.v-input__control>.v-input__slot:after{
+  display: none;
+}
+@media screen and (max-width: 500px) {
+  body .custom-cloudDrive {
+    max-height: calc(100vh - 156px)!important;
+    overflow: auto!important;
+  }
+  body .custom-toolbar,
+  body .custom-toolbar .v-toolbar__content {
+    height: auto !important;
+  }
+  body .custom-toolbar .v-toolbar__content {
+    flex-wrap: wrap-reverse!important;
+  }
+  body .custom-toolbar .v-toolbar__content > div:last-child,
+  body .custom-toolbar .v-toolbar__content > div:first-child {
+    min-width: calc(100vw - 35px)!important;
+  }
+  body .custom-toolbar .v-toolbar__content > div:last-child {
+    margin-bottom: 10px!important;
+    margin-top: 10px!important;
+  }
+  body .table-toolbar {
+    height: auto !important;
+  }
+  body .table-toolbar .v-breadcrumbs{
+    flex: 1!important;
+  }
+  body .table-toolbar .v-toolbar__content {
+    flex-wrap: wrap;
+    height: auto !important;
+  }
+  body .table-toolbar .v-toolbar__content > div:first-child {
+    min-width: calc(100vw - 35px)!important;
+  }
+  body .custom-list-panel {
+  }
+}
+</style>

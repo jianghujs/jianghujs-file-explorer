@@ -17,15 +17,16 @@ module.exports = appInfo => {
 
   return {
     appId,
-    appTitle: '1张表CRUD',
+    appTitle: '网盘',
     appLogo: `${appId}/public/img/logo.png`,
     appType: 'single',
     appDirectoryLink: '/',
-    indexPage: `/${appId}/page/studentManagement`,
+    indexPage: `/${appId}/page/fileExplorer`,
     loginPage: `/${appId}/page/login`,
     helpPage: `/${appId}/page/help`,
     uploadDir,
     downloadBasePath,
+    cloudDriveDir: path.join(uploadDir, "cloudDrive"),
     primaryColor: "#4caf50",
     primaryColorA80: "#EEF7EE",
     static: {

@@ -1,0 +1,60 @@
+
+<template id="toggle-template">
+  <div>
+    <v-expansion-panels style="width: calc(100% - 20px); margin: 10px;" @change="onOpen">
+      <v-expansion-panel>
+        <v-expansion-panel-header>{{_params['title']}}</v-expansion-panel-header>
+        <v-expansion-panel-content>
+          <slot></slot>
+        </v-expansion-panel-content>
+      </v-expansion-panel>
+    </v-expansion-panels>
+  </div>
+</template>
+<script>
+Vue.component("toggle-template", {
+  template: "#toggle-template",
+  name: "toggle-template",
+  props: {
+    params: {
+      type: Object,
+      default: () => {
+        return {
+          title: '测试标题',
+          defaultOpen: ''
+        };
+      }
+    }
+  },
+  computed: {
+    _params() {
+      return this.params;
+    }
+  },
+  watch: {
+    params: {
+      deep: true,
+      handler(value, oldValue) {
+        // console.log('params', value, oldValue)
+      }
+    }
+  },
+  data () {
+    return {
+    }
+  },
+  created() {
+  },
+
+  methods: {
+    onOpen(status) {
+      requestAnimationFrame(() => {
+        this.$emit('open', status)
+      })
+    }
+  }
+})
+</script>
+<style>
+
+</style>

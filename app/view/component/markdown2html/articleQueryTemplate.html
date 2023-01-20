@@ -1,0 +1,71 @@
+
+<template id="article-query-template">
+  <v-list dense class="ma-2">
+    <v-list-item-group
+        color="primary"
+    >
+      <v-list-item
+          v-for="(item, i) in articleList"
+          :key="item.id"
+      >
+        <v-list-item-icon class="ma-0 mr-2 mt-2">
+          <span>{{i+1}}. </span>
+        </v-list-item-icon>
+        <v-list-item-content>
+          <v-list-item-title v-text="item.articleTitle"></v-list-item-title>
+        </v-list-item-content>
+      </v-list-item>
+    </v-list-item-group>
+  </v-list>
+</template>
+<script>
+Vue.component("article-query-template", {
+  template: "#article-query-template",
+  name: "article-query-template",
+  props: {
+    params: {
+      type: Object,
+      default: () => {
+        return {}
+      }
+    }
+  },
+  watch: {
+    params: {
+      deep: true,
+      immediate: true,
+      handler(value, oValue) {
+        if(value) {
+          this.getArticleList(value);
+        }
+      }
+    }
+  },
+  data () {
+    return {
+      articleList: []
+    }
+  },
+  created() {
+    console.log("created", this.params)
+  },
+
+  methods: {
+    async getArticleList(paramObj) {
+      const result = await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'home_content',
+            actionId: "selectItemList",
+            actionData: paramObj
+          }
+        }
+      });
+      this.articleList = result.data.appData.resultData;
+    }
+  }
+})
+</script>
+<style>
+
+</style>

@@ -1,0 +1,78 @@
+<template id="fileBrowser-confirm">
+    <v-dialog
+        v-model="dialog"
+        :max-width="options.width"
+        @keydown.esc="cancel"
+        @click:outside="cancel"
+    >
+        <v-card>
+            <v-card-title class="text-h5" v-if="title">
+                {{ title }}
+            </v-card-title>
+            <v-card-text v-if="message" class="text-center">
+                <v-icon large color="warning" class="mb-5 mt-10">mdi-alert-circle-outline</v-icon>
+                <p v-html="message"></p>
+            </v-card-text>
+            <v-card-actions class="pt-0 pb-10 justify-center">
+                <v-btn depressed :color="options.color" @click="agree" style="width: 100px;"><$ constantUiMap.common.sure $></v-btn>
+                <v-btn text @click="cancel" style="width: 100px;"><$ constantUiMap.btn.cancel $></v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
+</template>
+
+<script>
+/**
+ * Vuetify Confirm Dialog component
+ * https://gist.github.com/eolant/ba0f8a5c9135d1a146e1db575276177d
+ *
+ * Insert component where you want to use it:
+ * <confirm ref="confirm"></confirm>
+ *
+ * Call it:
+ * this.$refs.confirm.open('Delete', 'Are you sure?', { color: 'red' }).then((confirm) => {})
+ * Or use await:
+ * if (await this.$refs.confirm.open('Delete', 'Are you sure?', { color: 'red' })) {
+ *   // yes
+ * }
+ * else {
+ *   // cancel
+ * }
+ */
+Vue.component("confirm", {
+    vuetify: new Vuetify(),
+    name: 'confirm',
+    template: '#fileBrowser-confirm',
+    data: () => ({
+        dialog: false,
+        resolve: null,
+        reject: null,
+        message: null,
+        title: null,
+        options: {
+            color: "error",
+            width: 400,
+        }
+    }),
+    methods: {
+        open(title, message, options) {
+            this.dialog = true;
+            this.title = title;
+            this.message = message;
+            this.options = Object.assign(this.options, options);
+            return new Promise((resolve, reject) => {
+                this.resolve = resolve;
+                this.reject = reject;
+            });
+        },
+        agree() {
+            this.resolve(true);
+            this.dialog = false;
+        },
+        cancel() {
+            this.resolve(false);
+            this.dialog = false;
+        }
+    }
+});
+</script>

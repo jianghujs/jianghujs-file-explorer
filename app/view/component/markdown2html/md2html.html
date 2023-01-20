@@ -1,0 +1,152 @@
+<!--md2html.html start-->
+<script src="/<$ ctx.app.config.appId $>/public/plugins/editor.md/lib/marked.min.js"></script>
+<template id="md2html">
+  <div>
+    <template v-for="(item, index) of currentArticleContentSection">
+      <template v-if="item.type === 'text'">
+        <template v-if="item.children">
+          <template v-for="(child, cindex) of item.children">
+            <template v-if="child.type === 'text'">
+              <div ref="artContent" class="content pa-5 markdown-body editormd-html-preview"
+                   :id="'artContent' + Math.floor(Math.random() * 9999)" :data-content="child.content">
+              </div>
+            </template>
+            <template v-else-if="child.type === 'articleQuery'">
+              <article-query-template :params="child.params"></article-query-template>
+            </template>
+          </template>
+        </template>
+        <template v-else>
+          <div ref="artContent" class="content pa-5 markdown-body editormd-html-preview"
+                :id="'artContent' + Math.floor(Math.random() * 9999)" :data-content="item.content">
+          </div>
+        </template>
+      </template>
+      <template v-if="item.type === 'toggle'">
+        <toggle-template :params="item.params" @open="renderMarkdown">
+          <template v-if="item.children">
+            <template v-for="(child, cIndex) of item.children">
+              <template v-if="child.type === 'text'">
+                <div ref="artContent" class="content pa-5 markdown-body editormd-html-preview"
+                     :id="'artContent' + Math.floor(Math.random() * 9999)" :data-content="child.content">
+                </div>
+              </template>
+              <template v-else-if="child.type === 'articleQuery'">
+                <article-query-template :params="child.params"></article-query-template>
+              </template>
+            </template>
+          </template>
+          <template v-else>
+            <div ref="artContent" class="content pa-5 markdown-body editormd-html-preview"
+                 :id="'artContent' + Math.floor(Math.random() * 9999)" :data-content="item.content">
+            </div>
+          </template>
+        </toggle-template>
+      </template>
+      <template v-if="item.type === 'articleQuery'">
+        <article-query-template :params="item.params"></article-query-template>
+      </template>
+      <template v-if="item.type === 'pdfViewer'">
+        <pdf-viewer :params="item.params"></pdf-viewer>
+      </template>
+    </template>
+  </div>
+</template>
+{% include 'component/markdown2html/jhTagEngine.html' %}
+{% include 'component/markdown2html/toggleTemplate.html' %}
+{% include 'component/markdown2html/articleQueryTemplate.html' %}
+{% include 'component/markdown2html/articleMarkdownEngine.html' %}
+{% include 'component/markdown2html/pdfViewerTemplate.html' %}
+<script>
+Vue.component("md2html", {
+  vuetify: new Vuetify(),
+  name: 'md2html',
+  props: ['articleContent'],
+  data: () => ({
+    currentArticleContentSection: []
+  }),
+  created() {
+    this.jhTagEngine = new JhTagEngine();
+    if(this.articleContent) {
+      this.renderContent();
+    }
+  },
+  watch: {
+    articleContent: {
+      handler(value) {
+        this.clearOldContent();
+        if(value) {
+          this.renderContent();
+        }
+      }
+    }
+  },
+  methods: {
+    clearOldContent() {
+      const artContentRefs = this.$refs.artContent;
+      if (artContentRefs && artContentRefs.length) {
+        artContentRefs.forEach(artContent => {
+          artContent.innerHTML = "";
+        })
+      }
+      this.currentArticleContentSection = [];
+    },
+    renderMarkdown () {
+      const artContentRefs = this.$refs.artContent;
+      if (artContentRefs && artContentRefs.length) {
+        setTimeout(() => {
+          this.markdownToHTML(artContentRefs);
+          this.isContentLoading = false;
+        }, 300)
+      } else {
+        requestAnimationFrame(() => {
+          this.renderContent();
+        })
+      }
+    },
+    markdownToHTML(artContentRefs) {
+      artContentRefs.forEach(artContent => {
+        const contentText = artContent.dataset.content;
+        artContent.innerHTML = ArticleMarkdownEngine.md2html(contentText);
+      })
+      this.$emit('complete')
+    },
+    async renderContent() {
+      const newArticleContent = this.articleContent.replace(/\/__appId__\/upload\//g, '/<$ ctx.app.config.appId $>/upload/')
+      this.currentArticleContentSection = await this.jhTagEngine.jhTagTemplateHandler(newArticleContent);
+      this.renderMarkdown();
+    },
+    dayjs: dayjs
+  },
+  template: '#md2html'
+})
+</script>
+<style scope>
+.articleOtherInfoBox span:last-child {
+  padding: 0 20px;
+}
+.articleOtherInfoBox span {
+  color: #666666;
+}
+.editormd-preview-container ol.linenums li, .editormd-html-preview ol.linenums li {
+    list-style-type: none;
+}
+.editormd-preview-container ol.linenums, .editormd-html-preview ol.linenums {
+    color: #999;
+    padding-left: 0;
+}
+
+.markdown-body pre {
+    font-family: unset;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.markdown-body pre code {
+    background-color: unset !important;
+    font-family: unset !important;
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+</style>
+<!--md2html.html end-->

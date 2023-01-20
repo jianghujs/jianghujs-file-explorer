@@ -1,0 +1,185 @@
+<template id="fileBrowser-toolbar">
+  <div>
+    <input v-show="false" style="opacity: 0; position: absolute; top: -200px" ref="inputUpload" type="file" multiple
+           @change="addFiles"/>
+    <div>
+      <template v-if="pathIsFloder">
+        <!-- 上传文件 -->
+        <v-btn :small="isMobile" v-if="path" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="path === '/'">
+          <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
+          <$ constantUiMap.btn.upload $>
+        </v-btn>
+        <!-- 创建文档文件 -->
+        <v-btn :small="isMobile" v-if="path" depressed @click="$emit('operation-markdown')" title="Upload Files" :disabled="path === '/'">
+          <v-icon class="mr-1" small>mdi-text-box-plus</v-icon>
+          新建文档
+        </v-btn>
+        <!-- 粘贴文件夹 -->
+        <v-btn :small="isMobile" v-if="path && currentCopyPath" depressed @click="pasteItem()" class="ml-1"
+               title="<$ constantUiMap.btn.paste $>" :disabled="path === '/'">
+          <v-icon class="mr-1" small>mdi-file-replace</v-icon>
+          <$ constantUiMap.btn.paste $>
+        </v-btn>
+        <!-- 创建文件夹 -->
+        <v-menu v-if="path" v-model="newFolderPopper" :close-on-content-click="false" :nudge-width="200"
+                offset-y>
+          <template v-slot:activator="{ on }">
+                      <span>
+                          <v-btn :small="isMobile" v-if="path" depressed color="success" v-on="on" class="ml-1" :disabled="path === '/'">
+                              <v-icon class="mr-1" small>mdi-folder-multiple-plus</v-icon>
+                              <$ constantUiMap.btn.createFolder $>
+                          </v-btn>
+                      </span>
+          </template>
+          <v-card>
+            <v-card-text>
+              <v-text-field color="success" label="<$ constantUiMap.btn.fileName $>" v-model="newFolderName" hide-details
+                            filled
+                            single-line dense></v-text-field>
+            </v-card-text>
+            <v-card-actions>
+              <div class="flex-grow-1"></div>
+              <v-btn @click="newFolderPopper = false" :disabled="mkdirIng" depressed small><$ constantUiMap.btn.cancel $></v-btn>
+              <v-btn color="success" :disabled="!newFolderName || mkdirIng" depressed @click="mkdir" small>
+                <v-progress-circular v-if="mkdirIng" indeterminate :size="18" color="primary"></v-progress-circular>
+                {{mkdirIng ? '正在创建' : '<$ constantUiMap.btn.create $>'}}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-menu>
+      </template>
+    </div>
+  </div>
+</template>
+
+<script>
+Vue.component("toolbar", {
+  vuetify: new Vuetify(),
+  name: 'toolbar',
+  template: '#fileBrowser-toolbar',
+  props: {
+    storages: Array,
+    storage: String,
+    path: String,
+    endpoints: Object,
+    operationOption: Object,
+    currentCopyPath: String,
+  },
+  data() {
+    return {
+      newFolderPopper: false,
+      newFolderName: "",
+      mkdirIng: false
+    };
+  },
+  computed: {
+    isMobile() {
+      return window.innerWidth < 500;
+    },
+    pathIsFloder() {
+      return this.path[this.path.length - 1] === "/";
+    },
+    pathSegments() {
+      let path = "/";
+      let isFolder = this.path[this.path.length - 1] === "/";
+      let segments = this.path.split("/").filter(item => item);
+
+      segments = segments.map((item, index) => {
+        path += item + (index < segments.length - 1 || isFolder ? "/" : "");
+        return {
+          name: item,
+          path
+        };
+      });
+
+      return segments;
+    },
+    storageObject() {
+      return this.storages.find(item => item.code == this.storage);
+    }
+  },
+  methods: {
+    fileBack({path}) {
+      this.$emit("path-changed", this.path.substring(0, this.path.lastIndexOf('/') + 1));
+    },
+    closePicker({path}) {
+      this.$emit("close-material-picker");
+    },
+    changeStorage(code) {
+      if (this.storage != code) {
+        this.$emit("storage-changed", code);
+        this.$emit("path-changed", "");
+      }
+    },
+    changePath(path) {
+      this.$emit("path-changed", path);
+    },
+    goUp() {
+      let segments = this.pathSegments;
+      let path;
+      if (segments.length === 1)
+        path = "/";
+      else
+        path = segments[segments.length - 2].path
+      this.changePath(path);
+    },
+    async addFiles(event) {
+      this.$emit("add-files", event.target.files);
+      this.$refs.inputUpload.value = "";
+    },
+    async mkdir() {
+      this.mkdirIng = true;
+      await this.syncMkdirRequest();
+      this.$emit("folder-created", this.newFolderName);
+      this.newFolderName = "";
+      this.mkdirIng = false;
+      this.newFolderPopper = false;
+    },
+    async syncMkdirRequest() {
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'mkdir',
+            actionData: {path: this.path + this.newFolderName},
+          }
+        }
+      })
+    },
+    async clearRecycle() {
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'clearRecycle',
+            actionData: {path: this.path},
+          }
+        }
+      })
+    },
+    cutItem() {
+      this.$emit("cut-item", this.path);
+    },
+    pasteItem() {
+      this.$emit("paste-item", this.path);
+    },
+    copyItem() {
+      this.$emit("copy-item", this.path);
+    },
+  }
+});
+</script>
+
+<style scoped>
+.storage-select-list .v-list-item--disabled {
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #fff;
+}
+
+.storage-select-list .v-list-item--disabled .v-icon {
+  color: #fff;
+}
+.v-breadcrumbs {
+  margin-top: -3px;
+}
+</style>

@@ -1,0 +1,129 @@
+<template id="fileBrowser-breadcrumbs">
+  <div>
+    <v-menu offset-y v-if="storages.length > 1">
+      <template v-slot:activator="{ on }">
+        <v-btn icon class="storage-select-button mr-3" v-on="on">
+          <v-icon>mdi-arrow-down-drop-circle-outline</v-icon>
+        </v-btn>
+      </template>
+      <v-list class="storage-select-list">
+        <v-list-item v-for="(item, index) in storages" :key="index"
+                     :disabled="item.code === storageObject.code" @click="changeStorage(item.code)">
+          <v-list-item-icon>
+            <v-icon v-text="item.icon"></v-icon>
+          </v-list-item-icon>
+          <v-list-item-title>{{ item.name }}</v-list-item-title>
+        </v-list-item>
+      </v-list>
+    </v-menu>
+    <div class="d-flex">
+      <v-btn height="26" color="#E8F5E9" style="margin-top: 1px;" @click="fileBack" class="ma-0 success--text elevation-0">
+        <v-icon class="mr-1" small>mdi-arrow-left</v-icon>
+        上一级
+      </v-btn>
+      <v-breadcrumbs class="py-0 px-4" style="margin-top: 1px; margin-left: 10px; background-color: #E8F5E9; border-radius: 4px;word-break: break-all;">
+        <v-breadcrumbs-item :input-value="path === '/'" @click="changePath('/')" role="button">
+          <v-icon class="mr-2" color="success">{{ storageObject.icon }}</v-icon>
+          <span style="font-size: 14px;" class="font-weight-medium success--text">{{ storageObject.name.endsWith('_recycle') ? '回收站' : storageObject.name }}</span>
+        </v-breadcrumbs-item>
+        <v-breadcrumbs-item
+            v-for="(segment, index) in pathSegments"
+            :input-value="index === pathSegments.length - 1" :key="index + '-btn'"
+            @click="changePath(segment.path)"
+            role="button">
+          <v-icon color="success">mdi-chevron-right</v-icon>
+          <span style="font-size: 14px;" class="ml-2 font-weight-medium success--text">{{ segment.name.endsWith('_recycle') ? '回收站' : segment.name }}</span>
+        </v-breadcrumbs-item>
+      </v-breadcrumbs>
+    </div>
+  </div>
+</template>
+
+<script>
+Vue.component("breadcrumbs", {
+  vuetify: new Vuetify(),
+  name: 'breadcrumbs',
+  template: '#fileBrowser-breadcrumbs',
+  props: {
+    storages: Array,
+    storage: String,
+    path: String
+  },
+  data() {
+    return {};
+  },
+  computed: {
+    pathSegments() {
+      let path = "/",
+          isFolder = this.path[this.path.length - 1] === "/",
+          segments = this.path.split("/").filter(item => item);
+
+      segments = segments.map((item, index) => {
+        path +=
+            item + (index < segments.length - 1 || isFolder ? "/" : "");
+        return {
+          name: item,
+          path
+        };
+      });
+
+      return segments;
+    },
+    storageObject() {
+      return this.storages.find(item => item.code == this.storage);
+    }
+  },
+  methods: {
+    fileBack() {
+      let path = this.path;
+      if(path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      if(path !== '') {
+        this.$emit("path-changed", path.substring(0, path.lastIndexOf('/') + 1));
+      } else {
+        this.$emit("path-changed", '/');
+      }
+    },
+    changeStorage(code) {
+      if (this.storage != code) {
+        this.$emit("storage-changed", code);
+        this.$emit("path-changed", "");
+      }
+    },
+    changePath(path) {
+      this.$emit("path-changed", path);
+    }
+  }
+});
+</script>
+
+<style scoped>
+.storage-select-list .v-list-item--disabled {
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #fff;
+}
+
+.storage-select-list .v-list-item--disabled .v-icon {
+  color: #fff;
+}
+
+.v-breadcrumbs {
+  margin-top: -3px;
+}
+
+.v-breadcrumbs li {
+  font-size: 12px;
+}
+
+.v-toolbar__content .v-snack__wrapper {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.v-toolbar__content .v-snack__content {
+  padding: 0;
+  height: 30px;
+  line-height: 30px;
+}
+</style>
