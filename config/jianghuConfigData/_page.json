@@ -1,0 +1,40 @@
+{
+  "RECORDS": [
+    {
+      "id": 2,
+      "pageId": "help",
+      "pageFile": null,
+      "pageName": "帮助",
+      "pageType": "dynamicInMenu",
+      "sort": "11",
+      "operation": "insert",
+      "operationByUserId": null,
+      "operationByUser": null,
+      "operationAt": null
+    },
+    {
+      "id": 3,
+      "pageId": "login",
+      "pageFile": null,
+      "pageName": "登陆",
+      "pageType": "",
+      "sort": "",
+      "operation": "insert",
+      "operationByUserId": null,
+      "operationByUser": null,
+      "operationAt": null
+    },
+    {
+      "id": 36,
+      "pageId": "studentManagement",
+      "pageFile": null,
+      "pageName": "学生管理",
+      "pageType": "showInMenu",
+      "sort": "5",
+      "operation": "insert",
+      "operationByUserId": null,
+      "operationByUser": null,
+      "operationAt": null
+    }
+  ]
+}
