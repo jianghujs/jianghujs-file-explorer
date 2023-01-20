@@ -105,15 +105,15 @@
                 <!-- 文件预览 -->
                 <v-card-text v-else-if="isFile" class="grow d-flex justify-center align-center">
                   <div class="flex flex-column justify-center align-center text-center">
-                    <div v-if="fileType === 'markdown'" style="height: calc(100vh - 240px); overflow: auto;">
-                      <div style="text-align: left;"><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${path}` }}</div>
-                      <md2html v-if="viewingMarkdown" :article-content="viewingMarkdown"></md2html>
-                      <div v-else class="d-flex align-center pa-10" style="justify-content: center">
-                        <v-progress-circular indeterminate :size="30" color="primary"></v-progress-circular>
-                        <span>加载中</span>
-                      </div>
-                    </div>
-                    <template v-else>
+<!--                    <div v-if="fileType === 'markdown'" style="height: calc(100vh - 240px); overflow: auto;">-->
+<!--                      <div style="text-align: left;"><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${path}` }}</div>-->
+<!--                      <md2html v-if="viewingMarkdown" :article-content="viewingMarkdown"></md2html>-->
+<!--                      <div v-else class="d-flex align-center pa-10" style="justify-content: center">-->
+<!--                        <v-progress-circular indeterminate :size="30" color="primary"></v-progress-circular>-->
+<!--                        <span>加载中</span>-->
+<!--                      </div>-->
+<!--                    </div>-->
+<!--                    <template v-else>-->
                       <v-img v-if="fileType === 'image'" min-width="30" max-width="500" min-height="30" max-height="500"
                              :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}?v=${new Date().getTime()}`" :key="path"
                              lazy-src=""
@@ -136,7 +136,7 @@
                                 type="audio/mpeg">
                       </audio>
                       <div><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${path}` }}</div>
-                    </template>
+<!--                    </template>-->
                   </div>
                 </v-card-text>
 
@@ -395,7 +395,7 @@
         <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
         <span>加载中</span>
       </div>
-      <md-dialog v-model="isMdEditShow" @save-content="saveContent" :default-md="willEditMd"></md-dialog>
+<!--      <md-dialog v-model="isMdEditShow" @save-content="saveContent" :default-md="willEditMd"></md-dialog>-->
     </div>
   </v-card>
 
@@ -435,8 +435,6 @@
 {% set componentFolder = 'component' %}
 <!-- 网盘 -->
 
-{% include 'component/fileBrowser/mdEdit.html' %}
-{% include 'component/markdown2html/md2html.html' %}
 <script type="module">
 const availableStorages = [
   {
