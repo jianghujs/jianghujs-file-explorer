@@ -57,12 +57,12 @@
 
           <!-- toolbar start -->
           <div v-if="!isRecycle">
-            <input v-show="false" style="opacity: 0; position: absolute; top: -200px" ref="inputUpload" type="file" multiple
+            <input v-show="false" style="opacity: 0; position: absolute; top: -200px" ref="inputUpload1" type="file" multiple
                    @change="addFiles"/>
             <div>
               <template v-if="pathIsFloder">
                 <!-- 上传文件 -->
-                <v-btn :small="isMobile" v-if="path" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="path === '/'">
+                <v-btn :small="isMobile" v-if="path" depressed @click="$refs.inputUpload1.click()" title="Upload Files" :disabled="path === '/'">
                   <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
                   <$ constantUiMap.btn.upload $>
                 </v-btn>
@@ -1254,7 +1254,7 @@ new Vue({
     },
     async addFiles(event) {
       this.addUploadingFiles(event.target.files)
-      this.$refs.inputUpload.value = "";
+      this.$refs.inputUpload1.value = "";
     },
     async mkdir() {
       this.mkdirIng = true;
