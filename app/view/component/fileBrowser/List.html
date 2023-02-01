@@ -2,8 +2,7 @@
   <v-card flat>
     <confirm ref="confirm"></confirm>
 
-    <v-card-text v-if="!path" class="grow d-flex justify-center align-center grey--text"><$ constantUiMap.btn.selectFile
-      $>
+    <v-card-text v-if="!path" class="grow d-flex justify-center align-center grey--text"><$ constantUiMap.btn.selectFile $>
     </v-card-text>
 
     <!-- 文件预览 -->
@@ -57,8 +56,14 @@
             mobile-breakpoint="0"
             :items="tableData"
             item-key="path"
-            class="elevation-0 listDataTable"
-            :options="{itemsPerPage: 15}"
+            :footer-props="{ itemsPerPageOptions: [20, 40, 60, 100, -1], itemsPerPageText: '每页行数', itemsPerPageAllText: '所有'}"
+            :items-per-page="20"
+            mobile-breakpoint="0"
+            :class="{'zebraLine': showTableZebraLine }"
+            checkbox-color="success"
+            fixed-header
+            :data-bottom="110"
+            class="elevation-0 listDataTable fixed-table-height elevation-0 mt-0 mb-xs-4 flex-fill d-flex flex-column"
         >
           <template v-slot:item.name="{ item }">
             <div v-if="item.type === 'dir'" @click="changePath(item.path)" role="button">
@@ -74,11 +79,11 @@
                     class=""
                     size="25"
                 >
-                  <v-img :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}/${item.basename}?v=${new Date().getTime()}`"></v-img>
+                  <v-img :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}/${item.basename}`"></v-img>
                 </v-avatar>
                 <v-icon v-else>{{ icons[item.extension.toLowerCase()] || icons['other'] }}</v-icon>
               </template>
-              <span style="flex: 1" class="ml-2">{{ item.basename }}</span>
+              <span style="flex: 1; line-height: 25px" class="ml-2">{{ item.basename }}</span>
             </div>
           </template>
           <template v-slot:item.size="{ item }">
@@ -180,13 +185,34 @@
               </div>
             </template>
           </template>
+          <!--表格底部右侧功能按钮-->
+          <template v-slot:footer.prepend>
+
+            <v-menu top offset-y :close-on-content-click="false">
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" icon>
+                  <v-icon>mdi-menu</v-icon>
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item>
+                  <v-switch v-model="showTableZebraLine" label="显示斑马纹" dense flat></v-switch>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </template>
+          <!--表格底部右侧分页-->
+          <template v-slot:footer.page-text="pagination">
+            <span>{{pagination.pageStart}}-{{pagination.pageStop}}</span>
+            <span class="ml-1">共{{pagination.itemsLength}}条</span>
+          </template>
         </v-data-table>
       </v-card-text>
       <!-- 为空提示 -->
-      <v-card-text v-else-if="filter" class="grow d-flex justify-center align-center grey--text py-10">
+      <v-card-text v-else-if="filter" class="grow d-flex justify-center align-center grey--text" style="padding: 150px 0">
         {{ dataLoading ? '' : '<$ constantUiMap.btn.fileNotFound $>' }}
       </v-card-text>
-      <v-card-text v-else class="grow d-flex justify-center align-center grey--text py-10">
+      <v-card-text v-else class="grow d-flex justify-center align-center grey--text" style="padding: 150px 0">
         {{ dataLoading ? '' : '<$ constantUiMap.btn.folderEmpty $>' }}
       </v-card-text>
     </template>
@@ -213,6 +239,7 @@ Vue.component("list", {
     return {
       host: window.location.host,
       folderAndFileList: [],
+      showTableZebraLine: true,
       page: 1,
       pageSize: 20,
       dataLoading: false,
@@ -549,7 +576,9 @@ Vue.component("list", {
   max-height: calc(100vh - 195px);
   overflow: auto;
 }
-
+body .v-menu__content {
+  margin-top: 20px;
+}
 .v-data-table > .v-data-table__wrapper > table > tbody > tr > td, .v-data-table > .v-data-table__wrapper > table > tfoot > tr > td, .v-data-table > .v-data-table__wrapper > table > thead > tr > td {
   color: #41434f;
   min-height: 52px;
@@ -570,12 +599,9 @@ td:not(:first-child):not(.v-picker td), th:not(:first-child):not(.v-picker th) {
   transform: translateX(-50%);
 }
 .listDataTable {
-  padding: 10px!important;
+  padding: 0!important;
 }
 .listDataTable td {
   white-space: nowrap!important;
-}
-.v-data-table .v-data-footer{
-  border-top: none !important;
 }
 </style>

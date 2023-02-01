@@ -1,192 +1,225 @@
-{% extends 'template/jhTemplateV3.html'%}
-{% block vue_template %}
+{% extends 'template/jhTemplateV4.html'%}
 
-<jh-layout-v3>
-<!-- 页面主要内容 -->
-<v-container class="fullScreen d-flex flex-column pa-xs-0 pa-0">
-  <v-card style="padding: 10px 20px">
-<!--    <file-browser :roleId="currentCloudDriveRoleId"-->
-<!--                  :groupId="currentCloudDriveId"></file-browser>-->
-    <div>
-      <v-card class="d-flex flex-column custom-cloudDrive" flat v-if="activeStorage">
-        <v-toolbar flat dense class="px-0 mt-2 custom-toolbar">
-          <template v-if="!(path && isDir) || isRecycle">
-<!--            Breadcrumbs.html start -->
-            <div>
-              <v-menu offset-y v-if="activeStorage.length > 1">
-                <template v-slot:activator="{ on }">
-                  <v-btn icon class="storage-select-button mr-3" v-on="on">
-                    <v-icon>mdi-arrow-down-drop-circle-outline</v-icon>
-                  </v-btn>
-                </template>
-                <v-list class="storage-select-list">
-                  <v-list-item v-for="(item, index) in activeStorage" :key="index"
-                               :disabled="item.code === storageObject.code" @click="changeStorage(item.code)">
-                    <v-list-item-icon>
-                      <v-icon v-text="item.icon"></v-icon>
-                    </v-list-item-icon>
-                    <v-list-item-title>{{ item.name }}</v-list-item-title>
-                  </v-list-item>
-                </v-list>
-              </v-menu>
-              <div class="d-flex">
-                <v-btn height="26" color="#E8F5E9" style="margin-top: 1px;" @click="fileBack" class="ma-0 success--text elevation-0">
-                  <v-icon class="mr-1" small>mdi-arrow-left</v-icon>
-                  上一级
-                </v-btn>
-                <v-breadcrumbs class="py-0 px-4" style="margin-top: 1px; margin-left: 10px; background-color: #E8F5E9; border-radius: 4px;word-break: break-all;">
-                  <v-breadcrumbs-item :input-value="path === '/'" @click="changePath('/')" role="button">
-                    <v-icon class="mr-2" color="success">{{ storageObject.icon }}</v-icon>
-                    <span style="font-size: 14px;" class="font-weight-medium success--text">{{ storageObject.name.endsWith('_recycle') ? '回收站' : storageObject.name }}</span>
-                  </v-breadcrumbs-item>
-                  <v-breadcrumbs-item
-                      v-for="(segment, index) in pathSegments"
-                      :input-value="index === pathSegments.length - 1" :key="index + '-btn'"
-                      @click="changePath(segment.path)"
-                      role="button">
-                    <v-icon color="success">mdi-chevron-right</v-icon>
-                    <span style="font-size: 14px;" class="ml-2 font-weight-medium success--text">{{ segment.name.endsWith('_recycle') ? '回收站' : segment.name }}</span>
-                  </v-breadcrumbs-item>
-                </v-breadcrumbs>
-              </div>
-            </div>
-<!--            Breadcrumbs.html end -->
+{% block vueTemplate %}
 
-            <div class="flex-grow-1"></div>
-          </template>
-          <toolbar
-              ref="toolbar"
-              v-if="!isRecycle"
-              :operation-option="operationOption"
-              :path="path"
-              :disabled="refreshPending"
-              :storages="storagesArray"
-              :storage="activeStorage"
-              :endpoints="endpoints"
-
-              :current-copy-path="currentCopyPath"
-              v-on:storage-changed="storageChanged"
-              v-on:path-changed="pathChanged"
-              v-on:copy-item="copyItem"
-              v-on:cut-item="cutItem"
-              v-on:paste-item="pasteItem"
-              v-on:add-files="addUploadingFiles"
-              v-on:folder-created="refreshPending = true"
-              v-on:operation-markdown="operationMarkdown"
-              v-on:close-material-picker="closeMaterialPicker"
-          >
-          </toolbar>
-          <!-- 搜索  -->
-          <template v-if="path && isDir && !isRecycle">
-            <div class="flex-grow-1"></div>
-            <div style="width: 300px;">
-              <v-text-field
-                  dense
-                  filled
-                  single-line
-                  hide-details="auto"
-                  label="Search Files & Folders" v-model="filter" prepend-inner-icon="mdi-magnify"
-                  color="success"></v-text-field>
-            </div>
-          </template>
-        </v-toolbar>
-        <v-row no-gutters class="custom-list-panel">
-          <v-col class="mt-2">
-            <v-toolbar flat dense v-if="(path && isDir) && !isRecycle" class="pr-4 table-toolbar">
-              <breadcrumbs
-                  :path="path"
-                  :storages="storagesArray"
-                  :storage="activeStorage"
-                  v-on:storage-changed="storageChanged"
-                  v-on:path-changed="pathChanged"
-              >
-              </breadcrumbs>
-              <v-spacer></v-spacer>
-              <template>
-                <v-chip
-                    class="ma-2 pa-2"
-                    color="green"
-                    text-color="white"
-                    small>
-                  {{ totalCount }} items
-                </v-chip>
-                <v-btn icon @click="refreshPending = true" small>
-                  <v-progress-circular indeterminate v-if="refreshPending" :size="20" color="primary"></v-progress-circular>
-                  <v-icon v-else>mdi-refresh</v-icon>
-                </v-btn>
-              </template>
-            </v-toolbar>
-            <list
-                ref="list"
-                :operation-option="operationOption"
-                :path="path"
-                :storage="activeStorage"
-                :icons="icons"
-                :endpoints="endpoints"
-                :role-id="roleId"
-
-                :refresh-pending="refreshPending"
-                :filter="filter"
-                v-on:path-changed="pathChanged"
-                v-on:copy-item="copyItem"
-                v-on:cut-item="cutItem"
-                v-on:edit-item="editItem"
-                v-on:paste-item="pasteItem"
-                v-on:loading="loadingChanged"
-                v-on:data-loading="onDataLoading"
-                v-on:operation-markdown="operationMarkdown"
-                v-on:refreshed="refreshPending = false"
-                v-on:file-deleted="refreshPending = true"
-                style="width: 100%;"
-            ></list>
-          </v-col>
-        </v-row>
-        <file-browser-upload
-            v-if="uploadingFiles !== false"
-            :path="path"
-            :storage="activeStorage"
-            :files="uploadingFiles"
-            :icons="icons"
-
-            :endpoint="endpoints.upload"
-            :max-upload-files-count="maxUploadFilesCount"
-            :max-upload-file-size="maxUploadFileSize"
-            v-on:add-files="addUploadingFiles"
-            v-on:remove-file="removeUploadingFile"
-            v-on:clear-files="uploadingFiles = []"
-            v-on:cancel="uploadingFiles = false"
-            v-on:uploaded="uploaded"
-        ></file-browser-upload>
-      </v-card>
-      <div v-else class="d-flex align-center pa-10" style="justify-content: center">
-        <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
-        <span>加载中</span>
+<script type="text/html" id="app-template">
+<div>
+<v-app id="inspire" mobile-breakpoint="sm">
+  <jhMenu/>
+  <v-main class="d-flex flex-column" style="margin-top: 60px">
+    <!-- 头部内容 >>>>>>>>>>>>> -->
+    <div class="pageSecondBar d-flex px-8">
+      <div>
+        <div class="appTitle pt-3" style="font-size: 18px; font-weight: 700">{{ breadcrumbs[1].fullText }}
+          <!-- 帮助页按钮 -->
+          <v-icon @click="isHelpPageDrawerShow = true" small>mdi-help-circle-outline</v-icon>
+        </div>
+        <v-breadcrumbs class="pb-3 pt-0 pl-0" :items="breadcrumbs" divider="-"></v-breadcrumbs>
       </div>
-      <md-dialog v-model="isMdEditShow" @save-content="saveContent" :default-md="willEditMd"></md-dialog>
     </div>
-  </v-card>
-</v-container>
+    <!-- <<<<<<<<<<<<< 头部内容 -->
+    <div class="pageBodyContainer px-8" style="flex: 1;">
+      <v-container class="fullScreen d-flex flex-column pa-xs-0 pa-0">
+        <v-card style="padding: 0 10px">
+          <div>
+            <v-card class="d-flex flex-column custom-cloudDrive" flat v-if="activeStorage">
+              <v-toolbar flat dense class="px-0 mt-2 custom-toolbar">
+                <template v-if="!(path && isDir) || isRecycle">
+                  <!--            Breadcrumbs.html start -->
+                  <div>
+                    <v-menu offset-y v-if="activeStorage.length > 1">
+                      <v-list class="storage-select-list">
+                        <v-list-item v-for="(item, index) in activeStorage" :key="index"
+                                     :disabled="item.code === storageObject.code" @click="changeStorage(item.code)">
+                          <v-list-item-icon>
+                            <v-icon v-text="item.icon"></v-icon>
+                          </v-list-item-icon>
+                          <v-list-item-title>{{ item.name }}</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
+                    <div class="d-flex">
+                      <v-btn height="26" color="#E8F5E9" style="margin-top: 1px;" @click="fileBack" class="ma-0 success--text elevation-0">
+                        <v-icon class="mr-1" small>mdi-arrow-left</v-icon>
+                        上一级
+                      </v-btn>
+                      <v-breadcrumbs class="py-0 px-4" style="margin-top: 1px; margin-left: 10px; background-color: #E8F5E9; border-radius: 4px;word-break: break-all;">
+                        <v-breadcrumbs-item :input-value="path === '/'" @click="changePath('/')" role="button">
+                          <v-icon class="mr-2" color="success">{{ storageObject.icon }}</v-icon>
+                          <span style="font-size: 14px;" class="font-weight-medium success--text">{{ storageObject.name.endsWith('_recycle') ? '回收站' : storageObject.name }}</span>
+                        </v-breadcrumbs-item>
+                        <v-breadcrumbs-item
+                            v-for="(segment, index) in pathSegments"
+                            :input-value="index === pathSegments.length - 1" :key="index + '-btn'"
+                            @click="changePath(segment.path)"
+                            role="button">
+                          <v-icon color="success">mdi-chevron-right</v-icon>
+                          <span style="font-size: 14px;" class="ml-2 font-weight-medium success--text">{{ segment.name.endsWith('_recycle') ? '回收站' : segment.name }}</span>
+                        </v-breadcrumbs-item>
+                      </v-breadcrumbs>
+                    </div>
+                  </div>
+                  <!--            Breadcrumbs.html end -->
+                  <div class="flex-grow-1"></div>
+                </template>
+                <toolbar
+                    ref="toolbar"
+                    v-if="!isRecycle"
+                    :operation-option="operationOption"
+                    :path="path"
+                    :disabled="refreshPending"
+                    :storages="storagesArray"
+                    :storage="activeStorage"
+                    :endpoints="endpoints"
 
-<!-- 新增 -->
+                    :current-copy-path="currentCopyPath"
+                    v-on:storage-changed="storageChanged"
+                    v-on:path-changed="pathChanged"
+                    v-on:copy-item="copyItem"
+                    v-on:cut-item="cutItem"
+                    v-on:paste-item="pasteItem"
+                    v-on:add-files="addUploadingFiles"
+                    v-on:folder-created="refreshPending = true"
+                    v-on:operation-markdown="operationMarkdown"
+                    v-on:close-material-picker="closeMaterialPicker"
+                >
+                </toolbar>
+                <!-- 搜索  -->
+                <template v-if="path && isDir && !isRecycle">
+                  <div class="flex-grow-1"></div>
+                  <div style="width: 300px;">
+                    <v-text-field
+                        dense
+                        filled
+                        single-line
+                        hide-details="auto"
+                        label="Search Files & Folders" v-model="filter" prepend-inner-icon="mdi-magnify"
+                        color="success"></v-text-field>
+                  </div>
+                </template>
+              </v-toolbar>
+              <v-row no-gutters class="custom-list-panel">
+                <v-col class="mt-2">
+                  <v-toolbar flat dense v-if="(path && isDir) && !isRecycle" class="pr-4 table-toolbar">
+                    <breadcrumbs
+                        :path="path"
+                        :storages="storagesArray"
+                        :storage="activeStorage"
+                        v-on:storage-changed="storageChanged"
+                        v-on:path-changed="pathChanged"
+                    >
+                    </breadcrumbs>
+                    <v-spacer></v-spacer>
+                    <template>
+                      <v-chip
+                          class="ma-2 pa-2"
+                          color="green"
+                          text-color="white"
+                          small>
+                        {{ totalCount }} items
+                      </v-chip>
+                      <v-btn icon @click="refreshPending = true" small>
+                        <v-progress-circular indeterminate v-if="refreshPending" :size="20" color="primary"></v-progress-circular>
+                        <v-icon v-else>mdi-refresh</v-icon>
+                      </v-btn>
+                    </template>
+                  </v-toolbar>
+                  <list
+                      ref="list"
+                      :operation-option="operationOption"
+                      :path="path"
+                      :storage="activeStorage"
+                      :icons="icons"
+                      :endpoints="endpoints"
+                      :role-id="roleId"
 
-<!-- 编辑抽屉 -->
+                      :refresh-pending="refreshPending"
+                      :filter="filter"
+                      v-on:path-changed="pathChanged"
+                      v-on:copy-item="copyItem"
+                      v-on:cut-item="cutItem"
+                      v-on:edit-item="editItem"
+                      v-on:paste-item="pasteItem"
+                      v-on:loading="loadingChanged"
+                      v-on:data-loading="onDataLoading"
+                      v-on:operation-markdown="operationMarkdown"
+                      v-on:refreshed="refreshPending = false"
+                      v-on:file-deleted="refreshPending = true"
+                      style="width: 100%;"
+                  ></list>
+                </v-col>
+              </v-row>
+              <file-browser-upload
+                  v-if="uploadingFiles !== false"
+                  :path="path"
+                  :storage="activeStorage"
+                  :files="uploadingFiles"
+                  :icons="icons"
 
-</jh-layout-v3>
+                  :endpoint="endpoints.upload"
+                  :max-upload-files-count="maxUploadFilesCount"
+                  :max-upload-file-size="maxUploadFileSize"
+                  v-on:add-files="addUploadingFiles"
+                  v-on:remove-file="removeUploadingFile"
+                  v-on:clear-files="uploadingFiles = []"
+                  v-on:cancel="uploadingFiles = false"
+                  v-on:uploaded="uploaded"
+              ></file-browser-upload>
+            </v-card>
+            <div v-else class="d-flex align-center pa-10" style="justify-content: center">
+              <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
+              <span>加载中</span>
+            </div>
+            <md-dialog v-model="isMdEditShow" @save-content="saveContent" :default-md="willEditMd"></md-dialog>
+          </div>
+        </v-card>
+      </v-container>
+      <!-- <<<<<<<<<<<<< 页面内容 -->
+    </div>
+
+    <!-- 帮助页抽屉 >>>>>>>>>>>>> -->
+    <v-navigation-drawer v-model="isHelpPageDrawerShow" fixed temporary right width="80%" hide-overlay
+                         class="elevation-24">
+      <iframe style="border: 0" :src="`/${appInfo.appId}/pageDoc#3.doUiAction.md`" width="100%"
+              height="100%"></iframe>
+
+      <v-btn elevation="0" color="success" fab absolute top left small tile class="drawer-close-float-btn"
+             @click="isHelpPageDrawerShow = false">
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+    </v-navigation-drawer>
+    <!-- <<<<<<<<<<<<< 帮助页抽屉 -->
+
+  </v-main>
+</v-app>
+
+<jhToast/>
+<jhMask/>
+<jhConfirmDialog/>
+
+</div>
+</script>
+
+<div id="app">
+</div>
 
 {% endblock %}
 
-{% block vue_body %}
-{% set componentFolder = 'component' %}
+{% block vueScript %}
+
 <!-- 网盘 -->
 
+<!-- 加载页面组件 >>>>>>>>>>>>> -->
+{% include 'common/fixedTableHeightV4.html' %}
 {% include 'component/fileBrowser/Confirm.html' %}
 {% include 'component/fileBrowser/List.html' %}
 {% include 'component/fileBrowser/Toolbar.html' %}
-{% include 'component/fileBrowser/Tree.html' %}
 {% include 'component/fileBrowser/fileBrowserUpload.html' %}
 {% include 'component/fileBrowser/Breadcrumbs.html' %}
 {% include 'component/fileBrowser/mdEdit.html' %}
 {% include 'component/markdown2html/md2html.html' %}
+{% include 'common/fixedTableHeightV4.html' %}
+<!-- <<<<<<<<<<<<< 加载页面组件 -->
 <script type="module">
 const availableStorages = [
   {
@@ -231,6 +264,10 @@ new Vue({
   template: '#app-template',
   vuetify: new Vuetify(),
   data: () => ({
+    breadcrumbs: window.breadcrumbs,
+    isHelpPageDrawerShow: false,
+    showTableZebraLine: true,
+    isMobile: window.innerWidth < 500,
     // 表格相关数据
     currentCloudDriveId: "cloudDemo",
     currentCloudDriveRoleId: "cloudRole",
@@ -287,9 +324,6 @@ new Vue({
       });
       return result;
     },
-    isMobile() {
-      return window.innerWidth < 500;
-    },
     isDir() {
       return this.path[this.path.length - 1] === "/";
     },
@@ -323,7 +357,7 @@ new Vue({
       }
     },
     refreshPending(value, oValue) {
-      if(!value && oValue) {
+      if (!value && oValue) {
       }
     }
   },
@@ -332,14 +366,15 @@ new Vue({
     this.path = this.groupId ? `/${this.groupId}/` : '/';
     await this.doUiAction('refreshTableData');
   },
-  mounted() {},
+  mounted() {
+  },
   methods: {
     async doUiAction(uiActionId, uiActionData) {
       switch (uiActionId) {
         case 'refreshTableData':
           break;
         default:
-          console.error("[doUiAction] uiActionId not find", { uiActionId });
+          console.error("[doUiAction] uiActionId not find", {uiActionId});
           break;
       }
     },
@@ -453,7 +488,7 @@ new Vue({
     },
     async pasteItem() {
       window.vtoast.loading(this.pasteMode === 'cut' ? '文件移动中' : '文件复制中');
-      if(this.refreshPending) {
+      if (this.refreshPending) {
         requestAnimationFrame(() => {
           this.pasteItem();
         })
@@ -492,11 +527,11 @@ new Vue({
     // Breadcrumbs.html
     fileBack() {
       let path = this.path;
-      if(path.endsWith('/')) {
+      if (path.endsWith('/')) {
         path = path.substring(0, path.length - 1);
       }
-      if(path !== '') {
-        this.pathChanged('path.substring(0, path.lastIndexOf(\'/\') + 1)');
+      if (path !== '') {
+        this.pathChanged(path.substring(0, path.lastIndexOf('/') + 1));
       } else {
         this.pathChanged("/")
       }
@@ -520,46 +555,58 @@ new Vue({
 .table-toolbar .v-toolbar__content {
   height: 30px !important;
 }
-.v-text-field--filled>.v-input__control>.v-input__slot{
+
+.v-text-field--filled > .v-input__control > .v-input__slot {
   background: #f5f8fa !important;
 }
-.v-text-field>.v-input__control>.v-input__slot:before,
-.v-text-field>.v-input__control>.v-input__slot:after{
+
+.v-text-field > .v-input__control > .v-input__slot:before,
+.v-text-field > .v-input__control > .v-input__slot:after {
   display: none;
 }
+
 @media screen and (max-width: 500px) {
   body .custom-cloudDrive {
-    max-height: calc(100vh - 156px)!important;
-    overflow: auto!important;
+    max-height: calc(100vh - 156px) !important;
+    overflow: auto !important;
   }
+
   body .custom-toolbar,
   body .custom-toolbar .v-toolbar__content {
     height: auto !important;
   }
+
   body .custom-toolbar .v-toolbar__content {
-    flex-wrap: wrap-reverse!important;
+    flex-wrap: wrap-reverse !important;
   }
+
   body .custom-toolbar .v-toolbar__content > div:last-child,
   body .custom-toolbar .v-toolbar__content > div:first-child {
-    min-width: calc(100vw - 35px)!important;
+    min-width: calc(100vw - 35px) !important;
   }
+
   body .custom-toolbar .v-toolbar__content > div:last-child {
-    margin-bottom: 10px!important;
-    margin-top: 10px!important;
+    margin-bottom: 10px !important;
+    margin-top: 10px !important;
   }
+
   body .table-toolbar {
     height: auto !important;
   }
-  body .table-toolbar .v-breadcrumbs{
-    flex: 1!important;
+
+  body .table-toolbar .v-breadcrumbs {
+    flex: 1 !important;
   }
+
   body .table-toolbar .v-toolbar__content {
     flex-wrap: wrap;
     height: auto !important;
   }
+
   body .table-toolbar .v-toolbar__content > div:first-child {
-    min-width: calc(100vw - 35px)!important;
+    min-width: calc(100vw - 35px) !important;
   }
+
   body .custom-list-panel {
   }
 }

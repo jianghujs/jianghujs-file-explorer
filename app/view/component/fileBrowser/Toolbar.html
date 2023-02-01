@@ -5,17 +5,17 @@
     <div>
       <template v-if="pathIsFloder">
         <!-- 上传文件 -->
-        <v-btn :small="isMobile" v-if="path" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="path === '/'">
+        <v-btn small v-if="path" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="path === '/'">
           <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
           <$ constantUiMap.btn.upload $>
         </v-btn>
         <!-- 创建文档文件 -->
-        <v-btn :small="isMobile" v-if="path" depressed @click="$emit('operation-markdown')" title="Upload Files" :disabled="path === '/'">
+        <v-btn small v-if="path" depressed @click="$emit('operation-markdown')" title="Upload Files" :disabled="path === '/'">
           <v-icon class="mr-1" small>mdi-text-box-plus</v-icon>
           新建文档
         </v-btn>
         <!-- 粘贴文件夹 -->
-        <v-btn :small="isMobile" v-if="path && currentCopyPath" depressed @click="pasteItem()" class="ml-1"
+        <v-btn small v-if="path && currentCopyPath" depressed @click="pasteItem()" class="ml-1"
                title="<$ constantUiMap.btn.paste $>" :disabled="path === '/'">
           <v-icon class="mr-1" small>mdi-file-replace</v-icon>
           <$ constantUiMap.btn.paste $>
@@ -24,21 +24,19 @@
         <v-menu v-if="path" v-model="newFolderPopper" :close-on-content-click="false" :nudge-width="200"
                 offset-y>
           <template v-slot:activator="{ on }">
-                      <span>
-                          <v-btn :small="isMobile" v-if="path" depressed color="success" v-on="on" class="ml-1" :disabled="path === '/'">
-                              <v-icon class="mr-1" small>mdi-folder-multiple-plus</v-icon>
-                              <$ constantUiMap.btn.createFolder $>
-                          </v-btn>
-                      </span>
+            <span>
+              <v-btn small v-if="path" depressed color="success" v-on="on" class="ml-1" :disabled="path === '/'">
+                  <v-icon class="mr-1" small>mdi-folder-multiple-plus</v-icon>
+                  <$ constantUiMap.btn.createFolder $>
+              </v-btn>
+            </span>
           </template>
           <v-card>
-            <v-card-text>
-              <v-text-field color="success" label="<$ constantUiMap.btn.fileName $>" v-model="newFolderName" hide-details
-                            filled
-                            single-line dense></v-text-field>
+            <v-card-text class="pb-0">
+              <v-text-field color="success" label="<$ constantUiMap.btn.fileName $>" v-model="newFolderName" hide-details filled single-line dense></v-text-field>
             </v-card-text>
-            <v-card-actions>
-              <div class="flex-grow-1"></div>
+            <v-card-actions class="px-4">
+              <v-spacer></v-spacer>
               <v-btn @click="newFolderPopper = false" :disabled="mkdirIng" depressed small><$ constantUiMap.btn.cancel $></v-btn>
               <v-btn color="success" :disabled="!newFolderName || mkdirIng" depressed @click="mkdir" small>
                 <v-progress-circular v-if="mkdirIng" indeterminate :size="18" color="primary"></v-progress-circular>
