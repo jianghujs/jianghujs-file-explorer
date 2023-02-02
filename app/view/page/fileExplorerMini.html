@@ -22,19 +22,19 @@
       <v-container class="fullScreen d-flex flex-column pa-xs-0 pa-0">
         <v-card style="padding: 0 10px">
           <div>
-            <v-card class="d-flex flex-column custom-cloudDrive" flat v-if="activeStorage">
+            <v-card class="d-flex flex-column custom-cloudDrive" flat v-if="currentDirectory">
               <v-toolbar flat dense class="px-0 mt-2 custom-toolbar">
                 <template v-if="!(path && isDir) || isRecycle">
                   <!--            Breadcrumbs.html start -->
                   <div>
-                    <v-menu offset-y v-if="activeStorage.length > 1">
+                    <v-menu offset-y v-if="currentDirectory.length > 1">
                       <template v-slot:activator="{ on }">
                         <v-btn icon class="storage-select-button mr-3" v-on="on">
                           <v-icon>mdi-arrow-down-drop-circle-outline</v-icon>
                         </v-btn>
                       </template>
                       <v-list class="storage-select-list">
-                        <v-list-item v-for="(item, index) in activeStorage" :key="index"
+                        <v-list-item v-for="(item, index) in currentDirectory" :key="index"
                                      :disabled="item.code === storageObject.code" @click="changeStorage(item.code)">
                           <v-list-item-icon>
                             <v-icon v-text="item.icon"></v-icon>
@@ -81,7 +81,7 @@
                         <$ constantUiMap.btn.upload $>
                       </v-btn>
                       <!-- 创建文档文件 -->
-                      <v-btn small v-if="path" depressed @click="$emit('operation-markdown')" title="Upload Files" :disabled="path === '/'">
+                      <v-btn small v-if="path" depressed @click="$emit('create-markdown')" title="Upload Files" :disabled="path === '/'">
                         <v-icon class="mr-1" small>mdi-text-box-plus</v-icon>
                         新建文档
                       </v-btn>
@@ -143,7 +143,7 @@
                     <breadcrumbs
                         :path="path"
                         :storages="storagesArray"
-                        :storage="activeStorage"
+                        :storage="currentDirectory"
                         v-on:storage-changed="storageChanged"
                         v-on:path-changed="pathChanged"
                     >
@@ -157,8 +157,8 @@
                           small>
                         {{ totalCount }} items
                       </v-chip>
-                      <v-btn icon @click="refreshPending = true" small>
-                        <v-progress-circular indeterminate v-if="refreshPending" :size="20" color="primary"></v-progress-circular>
+                      <v-btn icon @click="refreshing = true" small>
+                        <v-progress-circular indeterminate v-if="refreshing" :size="20" color="primary"></v-progress-circular>
                         <v-icon v-else>mdi-refresh</v-icon>
                       </v-btn>
                     </template>
@@ -238,7 +238,7 @@
                                 >
                                   <v-img :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}/${item.basename}?v=${new Date().getTime()}`"></v-img>
                                 </v-avatar>
-                                <v-icon v-else>{{ icons[item.extension.toLowerCase()] || icons['other'] }}</v-icon>
+                                <v-icon v-else>{{ fileIconList[item.extension.toLowerCase()] || fileIconList['other'] }}</v-icon>
                               </template>
                               <span style="flex: 1" class="ml-2">{{ item.basename }}</span>
                             </div>
@@ -421,7 +421,7 @@
                       <v-list-item v-for="(file, index) in listItems" :key="index" style="background-color: #f5f8fa;border-radius: 6px;" class="mb-2">
                         <v-list-item-avatar>
                           <v-img v-if="file.preview" :src="file.preview"></v-img>
-                          <v-icon v-else v-text="icons[file.extension] || 'mdi-file'" class="mdi-36px" color="grey lighten-1"></v-icon>
+                          <v-icon v-else v-text="fileIconList[file.extension] || 'mdi-file'" class="mdi-36px" color="grey lighten-1"></v-icon>
                         </v-list-item-avatar>
                         <v-list-item-content>
                           <v-list-item-title v-text="file.name"></v-list-item-title>
@@ -525,7 +525,7 @@
 <!-- <<<<<<<<<<<<< 加载页面组件 -->
 
 <script type="module">
-const availableStorages = [
+const cloudDriveDirectory = [
   {
     name: "网盘",
     code: "cloudDrive",
@@ -540,7 +540,7 @@ const endpoints = {
   delete: {url: "/storage/{storage}/delete?path={path}", method: "post"}
 };
 
-const fileIcons = {
+const fileIconList = {
   // zip: "mdi-folder-zip-outline",
   // rar: "mdi-folder-zip-outline",
   // htm: "mdi-language-html5",
@@ -574,20 +574,15 @@ new Vue({
 
     showTableZebraLine: true,
     // 表格相关数据
-    currentCloudDriveId: "cloudDemo",
-    currentCloudDriveRoleId: "cloudRole",
-
-    storages: availableStorages.map(item => item.code).join(","),
-    // code of default storage
-    groupId: "cloudDemo",
+    storages: cloudDriveDirectory.map(item => item.code).join(","),
     // 成员的角色: teacher / student
     roleId: "cloudRole",
     // 根目录
     storage: "cloudDrive",
     // show tree view
     tree: true,
-    // file icons set
-    icons: fileIcons,
+    // file fileIconList set
+    fileIconList: fileIconList,
     // custom backend endpoints
     endpoints: endpoints,
     // custom configuration for internal axios instance
@@ -603,15 +598,14 @@ new Vue({
     filter: "",
     totalCount: 0,
     loading: 0,
-    path: "/",
-    isMdEditShow: false,
-    activeStorage: null,
+    path: "/cloudDemo/",
+    isMarkdownEditDialogShow: false,
+    currentDirectory: null,
     uploadingFiles: false, // or an Array of files
     // 用于让子组件做监听，有变化时对当前目录做刷新
-    refreshPending: false,
-    axiosInstance: null,
+    refreshing: false,
     currentCopyPath: '',
-    willEditMd: null,
+    willEditMarkdownItem: null,
     moreBtn: [{value: 'mkDir', title: '创建文件夹'}, {value: 'rename', title: '重命名'}, {
       value: 'cut',
       title: '剪切'
@@ -662,7 +656,7 @@ new Vue({
       let storageCodes = this.storages.split(",");
       const result = [];
       storageCodes.forEach(code => {
-        result.push(availableStorages.find(item => item.code == code));
+        result.push(cloudDriveDirectory.find(item => item.code == code));
       });
       return result;
     },
@@ -690,7 +684,7 @@ new Vue({
       return segments;
     },
     storageObject() {
-      return this.storagesArray.find(item => item.code == this.activeStorage);
+      return this.storagesArray.find(item => item.code == this.currentDirectory);
     },
     dirs() {
       const list = this.folderAndFileList.filter(
@@ -741,18 +735,11 @@ new Vue({
     },
   },
   watch: {
-    async groupId(value, oValue) {
-      if (value && value !== oValue && this.path.indexOf(`/${this.groupId}/`) === -1) {
-        this.activeStorage = this.storage;
-        debugger
-        this.path = `/${this.groupId}/`
-      }
-    },
     async dataLoading(value, oValue) {
       if (value && !oValue || this.oldPath !== this.path) {
         this.oldPath = this.path;
         await this.getFolderAndFileListByPath('watch:dataLoading');
-        this.refreshPending = false;
+        this.refreshing = false;
       }
     },
     async path() {
@@ -760,7 +747,7 @@ new Vue({
       this.syncCacheData(this.path);
       this.dataLoading = true;
     },
-    async refreshPending(value) {
+    async refreshing(value) {
       if (value) {
         this.dataLoading = true;
       }
@@ -783,8 +770,7 @@ new Vue({
     }
   },
   async created() {
-    this.activeStorage = this.storage;
-    this.path = this.groupId ? `/${this.groupId}/` : '/';
+    this.currentDirectory = this.storage;
     await this.doUiAction('refreshTableData');
 
     this.oldPath = this.path;
@@ -807,11 +793,11 @@ new Vue({
 
     // 创建/修改文本文档
     operationMarkdown(item) {
-      this.isMdEditShow = true;
+      this.isMarkdownEditDialogShow = true;
     },
 
-    async saveContent({content, mdName}) {
-      this.addTempMdFile(mdName);
+    async saveMarkdown({content, mdName}) {
+      this.addMarkdownFileToCache(mdName);
       await window.jianghuAxios({
         data: {
           appData: {
@@ -825,20 +811,12 @@ new Vue({
           }
         }
       });
-      this.willEditMd = null;
-      this.isMdEditShow = false;
-      this.refreshPending = true;
+      this.willEditMarkdownItem = null;
+      this.isMarkdownEditDialogShow = false;
+      this.refreshing = true;
     },
     onDataLoading(event) {
-      this.refreshPending = event;
-    },
-    moreBtnAction(btn) {
-      switch (btn.value) {
-        case 'mkDir':
-          console.log(this.$refs.toolbar);
-          this.$refs.toolbar && this.$refs.toolbar.mkdir();
-          break;
-      }
+      this.refreshing = event;
     },
     closeMaterialPicker() {
     },
@@ -851,7 +829,7 @@ new Vue({
       this.totalCount = this.tableData.length
     },
     storageChanged(storage) {
-      this.activeStorage = storage;
+      this.currentDirectory = storage;
     },
     checkImageMaxUploadFileSize(files) {
       if (this.imageMaxUploadFileSize) {
@@ -886,7 +864,7 @@ new Vue({
     },
     uploaded() {
       this.uploadingFiles = false;
-      this.refreshPending = true;
+      this.refreshing = true;
     },
     pathChanged(path) {
       this.path = path;
@@ -914,7 +892,7 @@ new Vue({
     },
     async _pasteItem() {
       window.vtoast.loading(this.pasteMode === 'cut' ? '文件移动中' : '文件复制中');
-      if (this.refreshPending) {
+      if (this.refreshing) {
         requestAnimationFrame(() => {
           this.pasteItem();
         })
@@ -930,11 +908,11 @@ new Vue({
     },
     async _editItem({content, path}) {
       console.log('editItem', path)
-      this.willEditMd = {
+      this.willEditMarkdownItem = {
         content: content,
         name: path.substring(path.lastIndexOf('/') + 1)
       };
-      this.isMdEditShow = true;
+      this.isMarkdownEditDialogShow = true;
     },
     _cutItem(path) {
       this.currentCopyPath = path
@@ -963,7 +941,7 @@ new Vue({
       }
     },
     changeStorage(code) {
-      if (this.activeStorage != code) {
+      if (this.currentDirectory != code) {
         this.storageChanged(code)
         this.pathChanged("")
       }
@@ -999,14 +977,14 @@ new Vue({
     changePath(path) {
       this._changePath(path)
     },
-    addTempMdFile(mdName) {
-      let folderAndFileMap = this.getFolderAndFileMapFromCache();
+    addMarkdownFileToCache(mdName) {
+      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
       const getPath = this.path.replace(/\//g, '_');
-      const getKey = 'folderAndFile_' + getPath;
-      if (!folderAndFileMap.hasOwnProperty(getKey)) {
-        folderAndFileMap[getKey] = [];
+      const getKey = 'directoryAndFile_' + getPath;
+      if (!directoryAndFileMapCache.hasOwnProperty(getKey)) {
+        directoryAndFileMapCache[getKey] = [];
       }
-      const mdExist = folderAndFileMap[getKey].some(item => {
+      const mdExist = directoryAndFileMapCache[getKey].some(item => {
         if (item.name === mdName) {
           item.sync = true;
           return true;
@@ -1014,7 +992,7 @@ new Vue({
         return false
       })
       if (!mdExist)
-        folderAndFileMap[getKey].push({
+        directoryAndFileMapCache[getKey].push({
           "type": "file",
           "path": this.path,
           "name": `${mdName}.md`,
@@ -1023,8 +1001,8 @@ new Vue({
           "extension": "md",
           "size": 16,
         });
-      this.folderAndFileList = folderAndFileMap[getKey];
-      localStorage.setItem('folderAndFileMap', JSON.stringify(folderAndFileMap));
+      this.folderAndFileList = directoryAndFileMapCache[getKey];
+      localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
     },
     async getFolderAndFileListByPath(prevMethod) {
       console.log("getFolderAndFileListByPath::prevMethod", prevMethod);
@@ -1061,7 +1039,7 @@ new Vue({
         this.loadingChanged(true)
         await this.syncDeleteRequest(item);
         this.dataLoading = true;
-        this.refreshPending = true
+        this.refreshing = true
         this.loadingChanged(false)
       }
     },
@@ -1110,11 +1088,11 @@ new Vue({
         const fromPath = fromDir.replace(/\//g, '_');
         const toPath = this.path.replace(/\//g, '_');
         // 获取cache obj
-        const fromKey = 'folderAndFile_' + fromPath;
-        const toKey = 'folderAndFile_' + toPath;
-        let folderAndFileMap = this.getFolderAndFileMapFromCache();
-        if ((Object.keys(folderAndFileMap) || []).indexOf(toKey) > -1) {
-          folderAndFileMap[toKey].push({
+        const fromKey = 'directoryAndFile_' + fromPath;
+        const toKey = 'directoryAndFile_' + toPath;
+        let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
+        if ((Object.keys(directoryAndFileMapCache) || []).indexOf(toKey) > -1) {
+          directoryAndFileMapCache[toKey].push({
             "type": "file",
             "path": toDir,
             "name": filename.substring(0, filename.lastIndexOf('.')),
@@ -1125,14 +1103,14 @@ new Vue({
           });
         }
         if (pasteMode === 'moveFile') {
-          if ((Object.keys(folderAndFileMap) || []).indexOf(fromKey) > -1) {
-            folderAndFileMap[fromKey] = folderAndFileMap[fromKey].filter(item => {
+          if ((Object.keys(directoryAndFileMapCache) || []).indexOf(fromKey) > -1) {
+            directoryAndFileMapCache[fromKey] = directoryAndFileMapCache[fromKey].filter(item => {
               return item.basename !== filename;
             });
           }
         }
-        this.folderAndFileList = folderAndFileMap[toKey];
-        localStorage.setItem('folderAndFileMap', JSON.stringify(folderAndFileMap));
+        this.folderAndFileList = directoryAndFileMapCache[toKey];
+        localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
       }
     },
     async copyItem(item) {
@@ -1181,34 +1159,34 @@ new Vue({
         }
       })
     },
-    getFolderAndFileMapFromCache() {
-      let folderAndFileMap = localStorage.getItem('folderAndFileMap');
+    getDirectoryAndFileMapFromCache() {
+      let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
       try {
-        folderAndFileMap = JSON.parse(folderAndFileMap);
+        directoryAndFileMapCache = JSON.parse(directoryAndFileMapCache);
       } catch (err) {
-        folderAndFileMap = {};
+        directoryAndFileMapCache = {};
       }
-      if (!folderAndFileMap) {
-        folderAndFileMap = {};
+      if (!directoryAndFileMapCache) {
+        directoryAndFileMapCache = {};
       }
-      return folderAndFileMap;
+      return directoryAndFileMapCache;
     },
     // 从缓存读取、更新
     syncCacheData(oldPath, fileOrDirList) {
       const savePath = oldPath.replace(/\//g, '_');
       const getPath = this.path.replace(/\//g, '_');
       // 获取cache obj
-      const saveKey = 'folderAndFile_' + savePath;
-      const getKey = 'folderAndFile_' + getPath;
-      let folderAndFileMap = this.getFolderAndFileMapFromCache();
+      const saveKey = 'directoryAndFile_' + savePath;
+      const getKey = 'directoryAndFile_' + getPath;
+      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
       // 保存到cache
       if (fileOrDirList) {
-        folderAndFileMap[saveKey] = fileOrDirList;
-        localStorage.setItem('folderAndFileMap', JSON.stringify(folderAndFileMap));
+        directoryAndFileMapCache[saveKey] = fileOrDirList;
+        localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
       }
       // 从cache中取值
-      if ((Object.keys(folderAndFileMap) || []).indexOf(getKey) > -1) {
-        this.folderAndFileList = folderAndFileMap[getKey];
+      if ((Object.keys(directoryAndFileMapCache) || []).indexOf(getKey) > -1) {
+        this.folderAndFileList = directoryAndFileMapCache[getKey];
       } else {
         this.folderAndFileList = [];
       }
@@ -1294,7 +1272,7 @@ new Vue({
     async mkdir() {
       this.mkdirIng = true;
       await this.syncMkdirRequest();
-      this.refreshPending = true
+      this.refreshing = true
       this.newFolderName = "";
       this.mkdirIng = false;
       this.newFolderPopper = false;

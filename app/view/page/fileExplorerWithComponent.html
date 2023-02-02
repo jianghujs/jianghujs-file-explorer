@@ -19,177 +19,135 @@
     </div>
     <!-- <<<<<<<<<<<<< 头部内容 -->
     <div class="pageBodyContainer px-8" style="flex: 1;">
+      <!--✌️页面主体内容 >>>>>>>>>>>> -->
       <v-container class="fullScreen d-flex flex-column pa-xs-0 pa-0">
-        <v-card style="padding: 0 10px">
-          <div>
-            <v-card class="d-flex flex-column custom-cloudDrive" flat v-if="activeStorage">
-              <v-toolbar flat dense class="px-0 mt-2 custom-toolbar">
-                <template v-if="!(path && isDir) || isRecycle">
-                  <!--            Breadcrumbs.html start -->
-                  <div>
-                    <v-menu offset-y v-if="activeStorage.length > 1">
-                      <v-list class="storage-select-list">
-                        <v-list-item v-for="(item, index) in activeStorage" :key="index"
-                                     :disabled="item.code === storageObject.code" @click="changeStorage(item.code)">
-                          <v-list-item-icon>
-                            <v-icon v-text="item.icon"></v-icon>
-                          </v-list-item-icon>
-                          <v-list-item-title>{{ item.name }}</v-list-item-title>
-                        </v-list-item>
-                      </v-list>
-                    </v-menu>
-                    <div class="d-flex">
-                      <v-btn height="26" color="#E8F5E9" style="margin-top: 1px;" @click="fileBack" class="ma-0 success--text elevation-0">
-                        <v-icon class="mr-1" small>mdi-arrow-left</v-icon>
-                        上一级
-                      </v-btn>
-                      <v-breadcrumbs class="py-0 px-4" style="margin-top: 1px; margin-left: 10px; background-color: #E8F5E9; border-radius: 4px;word-break: break-all;">
-                        <v-breadcrumbs-item :input-value="path === '/'" @click="changePath('/')" role="button">
-                          <v-icon class="mr-2" color="success">{{ storageObject.icon }}</v-icon>
-                          <span style="font-size: 14px;" class="font-weight-medium success--text">{{ storageObject.name.endsWith('_recycle') ? '回收站' : storageObject.name }}</span>
-                        </v-breadcrumbs-item>
-                        <v-breadcrumbs-item
-                            v-for="(segment, index) in pathSegments"
-                            :input-value="index === pathSegments.length - 1" :key="index + '-btn'"
-                            @click="changePath(segment.path)"
-                            role="button">
-                          <v-icon color="success">mdi-chevron-right</v-icon>
-                          <span style="font-size: 14px;" class="ml-2 font-weight-medium success--text">{{ segment.name.endsWith('_recycle') ? '回收站' : segment.name }}</span>
-                        </v-breadcrumbs-item>
-                      </v-breadcrumbs>
-                    </div>
-                  </div>
-                  <!--            Breadcrumbs.html end -->
-                  <div class="flex-grow-1"></div>
-                </template>
-                <toolbar
-                    ref="toolbar"
-                    v-if="!isRecycle"
-                    :operation-option="operationOption"
-                    :path="path"
-                    :disabled="refreshPending"
-                    :storages="storagesArray"
-                    :storage="activeStorage"
-                    :endpoints="endpoints"
+        <v-card style="padding: 10px 10px 0 10px">
+          <div class="d-flex flex-column custom-cloudDrive" flat>
+            <v-row v-if="currentPathIsDir" class="ma-0 mb-2">
+              <!--✅目录de工具栏 >>>>>>>> -->
+              <toolbar
+                  ref="toolbar"
+                  :currentPath="currentPath"
+                  :current-copy-path="currentCopyPath"
+                  v-on:paste-item="doUiAction('pasteItem')"
+                  v-on:add-files="doUiAction('addNewFiles', $event)"
+                  v-on:folder-created="doUiAction('refreshDirectory')"
+                  v-on:create-markdown="doUiAction('startCreateMarkdown')"
+              >
+              </toolbar>
+              <v-spacer></v-spacer>
+              <!--✅<<<<<<<< 目录de工具栏 -->
+              <!--✅搜索 >>>>>>>> -->
+              <div style="width: 300px;">
+                <v-text-field dense filled single-line hide-details="auto" prepend-inner-icon="mdi-magnify"
+                  label="Search Files & Folders" v-model="tableSearchText" color="success">
+                </v-text-field>
+              </div>
+              <!--✅<<<<<<<<<< 搜索 -->
+            </v-row>
+            <v-row class="ma-0 mb-2">
+              <div>
+                <!-- ✅路径面包屑栏 >>>>>>>> -->
+                <div class="d-flex">
+                  <!--上一级按钮-->
+                  <v-btn height="26" color="#E8F5E9" style="margin-top: 1px;" @click="goBack" class="ma-0 success--text elevation-0">
+                    <v-icon class="mr-1" small>mdi-arrow-left</v-icon>
+                    上一级
+                  </v-btn>
+                  <!--文件详情路径面包屑-->
+                  <v-breadcrumbs class="py-0 px-4" style="margin-top: 1px; margin-left: 10px; background-color: #E8F5E9; border-radius: 4px;word-break: break-all;">
+                    <!--根目录-->
+                    <v-breadcrumbs-item :input-value="currentPath === '/'" @click="doUiAction('changeCurrentPath', '/')" role="button">
+                      <v-icon class="mr-2" color="success">{{ rootDirectory.icon }}</v-icon>
+                      <span style="font-size: 14px;" class="font-weight-medium success--text">{{ rootDirectory.name.endsWith('_recycle') ? '回收站' : rootDirectory.name }}</span>
+                    </v-breadcrumbs-item>
+                    <!--路径目录-->
+                    <v-breadcrumbs-item
+                        v-for="(pathItem, index) in currentPathList"
+                        :input-value="index === currentPathList.length - 1" :key="index + '-btn'"
+                        @click="doUiAction('changeCurrentPath', pathItem.path)"
+                        role="button">
+                      <v-icon color="success">mdi-chevron-right</v-icon>
+                      <span style="font-size: 14px;" class="ml-2 font-weight-medium success--text">{{ pathItem.name.endsWith('_recycle') ? '回收站' : pathItem.name }}</span>
+                    </v-breadcrumbs-item>
+                  </v-breadcrumbs>
+                </div>
+                <!-- ✅路径面包屑栏 >>>>>>>> -->
+              </div>
+              <v-spacer></v-spacer>
+              <template>
+                <v-chip color="green" text-color="white" small style="margin-top: 2px;">
+                  {{ totalCount }} items
+                </v-chip>
+                <v-btn icon @click="doUiAction('refreshDirectory')" small>
+                  <v-progress-circular indeterminate v-if="refreshing" :size="20" color="primary"></v-progress-circular>
+                  <v-icon v-else>mdi-refresh</v-icon>
+                </v-btn>
+              </template>
+            </v-row>
+            <v-row class="ma-0">
+              <directoryOrFileDetail
+                  ref="directoryOrFileDetail"
+                  :operation-option="operationOption"
+                  :currentPath="currentPath"
+                  :fileIconList="fileIconList"
+                  :role-id="roleId"
+                  :refreshing="refreshing"
+                  :tableSearchText="tableSearchText"
 
-                    :current-copy-path="currentCopyPath"
-                    v-on:storage-changed="storageChanged"
-                    v-on:path-changed="pathChanged"
-                    v-on:copy-item="copyItem"
-                    v-on:cut-item="cutItem"
-                    v-on:paste-item="pasteItem"
-                    v-on:add-files="addUploadingFiles"
-                    v-on:folder-created="refreshPending = true"
-                    v-on:operation-markdown="operationMarkdown"
-                    v-on:close-material-picker="closeMaterialPicker"
-                >
-                </toolbar>
-                <!-- 搜索  -->
-                <template v-if="path && isDir && !isRecycle">
-                  <div class="flex-grow-1"></div>
-                  <div style="width: 300px;">
-                    <v-text-field
-                        dense
-                        filled
-                        single-line
-                        hide-details="auto"
-                        label="Search Files & Folders" v-model="filter" prepend-inner-icon="mdi-magnify"
-                        color="success"></v-text-field>
-                  </div>
-                </template>
-              </v-toolbar>
-              <v-row no-gutters class="custom-list-panel">
-                <v-col class="mt-2">
-                  <v-toolbar flat dense v-if="(path && isDir) && !isRecycle" class="pr-4 table-toolbar">
-                    <breadcrumbs
-                        :path="path"
-                        :storages="storagesArray"
-                        :storage="activeStorage"
-                        v-on:storage-changed="storageChanged"
-                        v-on:path-changed="pathChanged"
-                    >
-                    </breadcrumbs>
-                    <v-spacer></v-spacer>
-                    <template>
-                      <v-chip
-                          class="ma-2 pa-2"
-                          color="green"
-                          text-color="white"
-                          small>
-                        {{ totalCount }} items
-                      </v-chip>
-                      <v-btn icon @click="refreshPending = true" small>
-                        <v-progress-circular indeterminate v-if="refreshPending" :size="20" color="primary"></v-progress-circular>
-                        <v-icon v-else>mdi-refresh</v-icon>
-                      </v-btn>
-                    </template>
-                  </v-toolbar>
-                  <list
-                      ref="list"
-                      :operation-option="operationOption"
-                      :path="path"
-                      :storage="activeStorage"
-                      :icons="icons"
-                      :endpoints="endpoints"
-                      :role-id="roleId"
+                  v-on:path-changed="doUiAction('changeCurrentPath', $event)"
+                  v-on:copy-item="doUiAction('copyItem', $event)"
+                  v-on:cut-item="doUiAction('cutItem', $event)"
+                  v-on:edit-markdown-item="doUiAction('startUpdateMarkdown', $event)"
+                  v-on:paste-item="doUiAction('pasteItem', $event)"
+                  v-on:total-change="doUiAction('setDirectoryTotal', $event)"
+                  v-on:refresh-status-change="doUiAction('onRefreshStatusChange', $event)"
+                  v-on:refresh-done="doUiAction('stopRefresh')"
+                  v-on:file-deleted="doUiAction('refreshDirectory')"
+                  style="width: 100%;"
+              ></directoryOrFileDetail>
+            </v-row>
 
-                      :refresh-pending="refreshPending"
-                      :filter="filter"
-                      v-on:path-changed="pathChanged"
-                      v-on:copy-item="copyItem"
-                      v-on:cut-item="cutItem"
-                      v-on:edit-item="editItem"
-                      v-on:paste-item="pasteItem"
-                      v-on:loading="loadingChanged"
-                      v-on:data-loading="onDataLoading"
-                      v-on:operation-markdown="operationMarkdown"
-                      v-on:refreshed="refreshPending = false"
-                      v-on:file-deleted="refreshPending = true"
-                      style="width: 100%;"
-                  ></list>
-                </v-col>
-              </v-row>
-              <file-browser-upload
-                  v-if="uploadingFiles !== false"
-                  :path="path"
-                  :storage="activeStorage"
-                  :files="uploadingFiles"
-                  :icons="icons"
-
-                  :endpoint="endpoints.upload"
-                  :max-upload-files-count="maxUploadFilesCount"
-                  :max-upload-file-size="maxUploadFileSize"
-                  v-on:add-files="addUploadingFiles"
-                  v-on:remove-file="removeUploadingFile"
-                  v-on:clear-files="uploadingFiles = []"
-                  v-on:cancel="uploadingFiles = false"
-                  v-on:uploaded="uploaded"
-              ></file-browser-upload>
-            </v-card>
-            <div v-else class="d-flex align-center pa-10" style="justify-content: center">
-              <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
-              <span>加载中</span>
-            </div>
-            <md-dialog v-model="isMdEditShow" @save-content="saveContent" :default-md="willEditMd"></md-dialog>
           </div>
         </v-card>
       </v-container>
       <!-- <<<<<<<<<<<<< 页面内容 -->
+      <!-- 弹窗组件 >>>>>>>> -->
+      <!--文档编辑器弹窗-->
+      <md-dialog
+          v-model="isMarkdownEditDialogShow"
+          @save-content="doUiAction('saveMarkdown', $event)"
+          :default-md="willEditMarkdownItem">
+      </md-dialog>
+      <!--上传文件弹窗-->
+      <file-browser-upload
+          v-if="uploadingFileDialog"
+          :currentPath="currentPath"
+          :files="uploadingFileList"
+          :fileIconList="fileIconList"
+
+          :max-upload-files-count="maxUploadFilesCount"
+          :max-upload-file-size="maxUploadFileSize"
+          v-on:add-files="doUiAction('addNewFiles', $event)"
+          v-on:remove-file="doUiAction('removeUploadingFile', $event)"
+          v-on:clear-files="doUiAction('cleanUploadList')"
+          v-on:cancel="doUiAction('cancelUpload')"
+          v-on:uploaded="doUiAction('uploadSuccess')"
+      ></file-browser-upload>
+      <!-- <<<<<<<<<< 弹窗组件 -->
+      <!--✌️<<<<<<<<<< 页面主体内容 -->
     </div>
 
     <!-- 帮助页抽屉 >>>>>>>>>>>>> -->
-    <v-navigation-drawer v-model="isHelpPageDrawerShow" fixed temporary right width="80%" hide-overlay
-                         class="elevation-24">
+    <v-navigation-drawer v-model="isHelpPageDrawerShow" fixed temporary right width="80%" hide-overlay class="elevation-24">
       <iframe style="border: 0" :src="`/${appInfo.appId}/pageDoc#3.doUiAction.md`" width="100%"
               height="100%"></iframe>
-
       <v-btn elevation="0" color="success" fab absolute top left small tile class="drawer-close-float-btn"
              @click="isHelpPageDrawerShow = false">
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </v-navigation-drawer>
     <!-- <<<<<<<<<<<<< 帮助页抽屉 -->
-
   </v-main>
 </v-app>
 
@@ -210,54 +168,14 @@
 <!-- 网盘 -->
 
 <!-- 加载页面组件 >>>>>>>>>>>>> -->
-{% include 'common/fixedTableHeightV4.html' %}
-{% include 'component/fileBrowser/Confirm.html' %}
-{% include 'component/fileBrowser/List.html' %}
+{% include 'component/fileBrowser/directoryOrFileDetail.html' %}
 {% include 'component/fileBrowser/Toolbar.html' %}
 {% include 'component/fileBrowser/fileBrowserUpload.html' %}
-{% include 'component/fileBrowser/Breadcrumbs.html' %}
 {% include 'component/fileBrowser/mdEdit.html' %}
 {% include 'component/markdown2html/md2html.html' %}
 {% include 'common/fixedTableHeightV4.html' %}
 <!-- <<<<<<<<<<<<< 加载页面组件 -->
 <script type="module">
-const availableStorages = [
-  {
-    name: "网盘",
-    code: "cloudDrive",
-    icon: "mdi-cloud-circle"
-  }
-];
-
-const endpoints = {
-  list: {url: "/storage/{storage}/list?path={path}", method: "get"},
-  upload: {url: "/storage/{storage}/upload?path={path}", method: "post"},
-  mkdir: {url: "/storage/{storage}/mkdir?path={path}", method: "post"},
-  delete: {url: "/storage/{storage}/delete?path={path}", method: "post"}
-};
-
-const fileIcons = {
-  // zip: "mdi-folder-zip-outline",
-  // rar: "mdi-folder-zip-outline",
-  // htm: "mdi-language-html5",
-  // html: "mdi-language-html5",
-  // js: "mdi-nodejs",
-  // json: "mdi-json",
-  md: "mdi-sticker-text-outline",
-  // pdf: "mdi-file-pdf",
-  png: "mdi-file-image",
-  jpg: "mdi-file-image",
-  jpeg: "mdi-file-image",
-  mp4: "mdi-filmstrip",
-  mkv: "mdi-filmstrip",
-  avi: "mdi-filmstrip",
-  wmv: "mdi-filmstrip",
-  mov: "mdi-filmstrip",
-  txt: "mdi-file-document-outline",
-  // xls: "mdi-file-excel",
-  // other: "mdi-file-outline"
-};
-
 
 new Vue({
   el: '#app',
@@ -269,23 +187,34 @@ new Vue({
     showTableZebraLine: true,
     isMobile: window.innerWidth < 500,
     // 表格相关数据
-    currentCloudDriveId: "cloudDemo",
-    currentCloudDriveRoleId: "cloudRole",
-
-    storages: availableStorages.map(item => item.code).join(","),
-    // code of default storage
-    groupId: "cloudDemo",
-    // 成员的角色: teacher / student
-    roleId: "cloudRole",
-    // 根目录
-    storage: "cloudDrive",
-    // show tree view
-    tree: true,
-    // file icons set
-    icons: fileIcons,
-    // custom backend endpoints
-    endpoints: endpoints,
-    // custom configuration for internal axios instance
+    rootDirectory: Object.freeze({
+      name: "网盘",
+      code: "cloudDrive",
+      icon: "mdi-cloud-circle"
+    }),
+    // 成员的角色: teacher / student 部分功能只有teacher能用
+    roleId: "teacher",
+    fileIconList: Object.freeze({
+      // zip: "mdi-folder-zip-outline",
+      // rar: "mdi-folder-zip-outline",
+      // htm: "mdi-language-html5",
+      // html: "mdi-language-html5",
+      // js: "mdi-nodejs",
+      // json: "mdi-json",
+      md: "mdi-sticker-text-outline",
+      // pdf: "mdi-file-pdf",
+      png: "mdi-file-image",
+      jpg: "mdi-file-image",
+      jpeg: "mdi-file-image",
+      mp4: "mdi-filmstrip",
+      mkv: "mdi-filmstrip",
+      avi: "mdi-filmstrip",
+      wmv: "mdi-filmstrip",
+      mov: "mdi-filmstrip",
+      txt: "mdi-file-document-outline",
+      // xls: "mdi-file-excel",
+      // other: "mdi-file-outline"
+    }),
     // max files count to upload at once. Unlimited by default
     maxUploadFilesCount: 0,
     // max file size to upload. Unlimited by default
@@ -295,97 +224,151 @@ new Vue({
     materialType: '',
     operationOption: {delete: true, copy: true, recycle: true, renameFile: true},
 
-    filter: "",
+    tableSearchText: "",
     totalCount: 0,
-    loading: 0,
-    path: "/",
-    isMdEditShow: false,
-    activeStorage: null,
-    uploadingFiles: false, // or an Array of files
-    // 用于让子组件做监听，有变化时对当前目录做刷新
-    refreshPending: false,
-    axiosInstance: null,
+    currentPath: "/cloudDemo/",
+    isMarkdownEditDialogShow: false,
+    currentDirectory: null,
+    uploadingFileDialog: false, // or an Array of files
+    uploadingFileList: [], // or an Array of files
+    // 目录刷新状态
+    refreshing: false,
     currentCopyPath: '',
-    willEditMd: null,
-    moreBtn: [{value: 'mkDir', title: '创建文件夹'}, {value: 'rename', title: '重命名'}, {
-      value: 'cut',
-      title: '剪切'
-    }, {value: 'paste', title: '粘贴'}],
+    willEditMarkdownItem: null,
+    moreBtn: [
+      {value: 'mkDir', title: '创建文件夹'},
+      {value: 'rename', title: '重命名'},
+      {value: 'cut',title: '剪切'},
+      {value: 'paste', title: '粘贴'}
+    ],
   }),
   computed: {
-    isRecycle() {
-      return this.path.endsWith('_recycle/');
+    // 回收站
+    currentPathIsRecycle() {
+      return this.currentPath.endsWith('_recycle/');
     },
-    storagesArray() {
-      let storageCodes = this.storages.split(",");
-      const result = [];
-      storageCodes.forEach(code => {
-        result.push(availableStorages.find(item => item.code == code));
-      });
-      return result;
+    // 文件夹
+    currentPathIsDir() {
+      return this.currentPath[this.currentPath.length - 1] === "/";
     },
-    isDir() {
-      return this.path[this.path.length - 1] === "/";
+    // 文件
+    currentPathIsFile() {
+      return !(this.currentPath && this.currentPathIsDir);
     },
-    // Breadcrumbs.html
-    pathSegments() {
-      let path = "/",
-          isFolder = this.path[this.path.length - 1] === "/",
-          segments = this.path.split("/").filter(item => item);
-
-      segments = segments.map((item, index) => {
-        path +=
-            item + (index < segments.length - 1 || isFolder ? "/" : "");
+    // 当前路径名称列表
+    currentPathList() {
+      let path = "/";
+      let isFolder = this.currentPath[this.currentPath.length - 1] === "/";
+      let pathItem = this.currentPath.split("/").filter(item => !_.isEmpty(item));
+      pathItem = pathItem.map((item, index) => {
+        path += item + (index < pathItem.length - 1 || isFolder ? "/" : "");
         return {
           name: item,
           path
         };
       });
-
-      return segments;
+      return pathItem;
     },
-    storageObject() {
-      return this.storagesArray.find(item => item.code == this.activeStorage);
-    }
-  },
-  watch: {
-    async groupId(value, oValue) {
-      if (value && value !== oValue && this.path.indexOf(`/${this.groupId}/`) === -1) {
-        this.activeStorage = this.storage;
-        debugger
-        this.path = `/${this.groupId}/`
-      }
-    },
-    refreshPending(value, oValue) {
-      if (!value && oValue) {
-      }
-    }
   },
   async created() {
-    this.activeStorage = this.storage;
-    this.path = this.groupId ? `/${this.groupId}/` : '/';
-    await this.doUiAction('refreshTableData');
+    this.currentDirectory = this.rootDirectory.code;
   },
   mounted() {
   },
   methods: {
     async doUiAction(uiActionId, uiActionData) {
       switch (uiActionId) {
-        case 'refreshTableData':
+        case 'pasteItem':
+          await this.pasteItem();
+          await this.refreshDirectory();
           break;
-        default:
-          console.error("[doUiAction] uiActionId not find", {uiActionId});
+        case 'copyItem':
+          await this.copyItem(uiActionData);
+          break;
+        case 'cutItem':
+          await this.cutItem(uiActionData);
+          break;
+        case 'changeCurrentPath':
+          await this.changeCurrentPath(uiActionData);
+          break;
+        case 'refreshDirectory':
+          await this.refreshDirectory();
+          break;
+        case 'stopRefresh':
+          await this.stopRefresh();
+          break;
+        case 'onRefreshStatusChange':
+          await this.onRefreshStatusChange(uiActionData);
+          break;
+        case 'setDirectoryTotal':
+          await this.setDirectoryTotal(uiActionData);
+          break;
+        case 'startCreateMarkdown':
+          await this.openMarkdownDialog();
+          break;
+        case 'startUpdateMarkdown':
+          await this.prepareUpdateMarkdown(uiActionData);
+          await this.openMarkdownDialog();
+          break;
+        case 'saveMarkdown':
+          await this.createMarkdownFileToCache(uiActionData);
+          await this.doSaveMarkdown(uiActionData);
+          await this.cleanMarkdownEditFormData();
+          await this.closeMarkdownDialog();
+          await this.refreshDirectory();
+          break;
+        case 'addNewFiles':
+          await this.addNewFiles(uiActionData);
+          break;
+        case 'removeUploadingFile':
+          await this.removeUploadingFile(uiActionData);
+          break;
+        case 'cleanUploadList':
+          await this.cleanUploadList();
+          break;
+        case 'cancelUpload':
+          await this.onUploadCancel();
+          break;
+        case 'uploadSuccess':
+          await this.onUploadSuccess();
           break;
       }
     },
-
-    // 创建/修改文本文档
-    operationMarkdown(item) {
-      this.isMdEditShow = true;
+    /**
+     * ✅刷新当前目录
+     */
+    refreshDirectory() {
+      console.log("刷新当前目录");
+      this.refreshing = true;
     },
-
-    async saveContent({content, mdName}) {
-      this.$refs.list.addTempMdFile(mdName);
+    /**
+     * ✅停止刷新
+     */
+    stopRefresh() {
+      this.refreshing = false;
+    },
+    /**
+     * ✅打开markdown编辑器弹窗
+     * @param item
+     */
+    openMarkdownDialog(item) {
+      this.isMarkdownEditDialogShow = true;
+    },
+    /**
+     * ✅保存markdown文件到缓存
+     * @param content
+     * @param markdownName
+     */
+    createMarkdownFileToCache({content, markdownName}) {
+      this.$refs.directoryOrFileDetail.addMarkdownFileToCache(markdownName);
+    },
+    /**
+     * ✅保存markdown文档
+     * @param content markdown文件内容
+     * @param markdownName markdown文件名
+     * @returns {Promise<void>}
+     */
+    async doSaveMarkdown({content, markdownName}) {
       await window.jianghuAxios({
         data: {
           appData: {
@@ -393,41 +376,43 @@ new Vue({
             actionId: 'saveMarkdown',
             actionData: {
               content,
-              name: mdName,
-              path: this.path
+              name: markdownName,
+              path: this.currentPath
             },
           }
         }
       });
-      this.willEditMd = null;
-      this.isMdEditShow = false;
-      this.refreshPending = true;
     },
-    onDataLoading(event) {
-      this.refreshPending = event;
+    /**
+     * ✅清理markdown编辑表单数据
+     */
+    cleanMarkdownEditFormData() {
+      this.willEditMarkdownItem = null;
     },
-    moreBtnAction(btn) {
-      switch (btn.value) {
-        case 'mkDir':
-          console.log(this.$refs.toolbar);
-          this.$refs.toolbar && this.$refs.toolbar.mkdir();
-          break;
-      }
+    /**
+     * ✅关闭markdown编辑器弹窗
+     */
+    closeMarkdownDialog() {
+      this.isMarkdownEditDialogShow = false;
     },
-    closeMaterialPicker() {
+    /**
+     *  ✅修改目录刷新状态
+     * @param event
+     */
+    onRefreshStatusChange(event) {
+      this.refreshing = event;
     },
-    loadingChanged(loading) {
-      if (loading) {
-        this.loading++;
-      } else if (this.loading > 0) {
-        this.loading--;
-      }
-      this.totalCount = this.$refs.list.tableData.length
+    /**
+     * ✅同步当前目录的子文件/文件夹数量
+     */
+    setDirectoryTotal(count) {
+      this.totalCount = count;
     },
-    storageChanged(storage) {
-      this.activeStorage = storage;
-    },
-    checkImageMaxUploadFileSize(files) {
+    /**
+     * ✅检查待上传图片大小，并剔除超过上限的
+     * @param files
+     */
+    checkAndFilterImageExceedMaxSize(files) {
       if (this.imageMaxUploadFileSize) {
         const checkImageSizeError = this.materialType === 'image' && files.find(
             file => file.size > this.imageMaxUploadFileSize
@@ -440,31 +425,107 @@ new Vue({
         }
       }
     },
-    addUploadingFiles(files) {
+    /**
+     * ✅新选择上传文件（多选）
+     * @param files
+     */
+    addNewFiles(files) {
       files = Array.from(files);
-
-      this.checkImageMaxUploadFileSize(files);
-
-      if (this.uploadingFiles === false) {
-        this.uploadingFiles = [];
+      this.checkAndFilterImageExceedMaxSize(files);
+      if (this.uploadingFileDialog === false) {
+        this.uploadingFileList = [];
       }
-
-      if (this.maxUploadFilesCount && this.uploadingFiles.length + files.length > this.maxUploadFilesCount) {
-        files = files.slice(0, this.maxUploadFilesCount - this.uploadingFiles.length);
+      this.uploadingFileDialog = true;
+      if (this.maxUploadFilesCount && this.uploadingFileList.length + files.length > this.maxUploadFilesCount) {
+        files = files.slice(0, this.maxUploadFilesCount - this.uploadingFileList.length);
       }
-
-      this.uploadingFiles.push(...files);
+      this.uploadingFileList.push(...files);
     },
+    /**
+     * ✅从上传列表中删除文件
+     * @param index
+     */
     removeUploadingFile(index) {
-      this.uploadingFiles.splice(index, 1);
+      this.uploadingFileList.splice(index, 1);
     },
-    uploaded() {
-      this.uploadingFiles = false;
-      this.refreshPending = true;
+    /**
+     * ✅文件上传取消
+     */
+    onUploadCancel() {
+      this.uploadingFileList = [];
+      this.uploadingFileDialog = false;
     },
-    pathChanged(path) {
-      this.path = path;
+    /**
+     * ✅清空上传文件列表
+     */
+    cleanUploadList() {
+      this.uploadingFileList = [];
     },
+    /**
+     * ✅文件上传成功
+     */
+    onUploadSuccess() {
+      this.onUploadCancel();
+      this.doUiAction('refreshDirectory');
+    },
+    /**
+     * ✅从cache中过滤掉被移走的文件
+     * @param directoryAndFileMapCache
+     * @param fromKey
+     * @param filename
+     * @returns {*}
+     */
+    filterMoveSuccessFile (directoryAndFileMapCache, fromKey, filename) {
+      return directoryAndFileMapCache[fromKey].filter(item => {
+        return item.basename !== filename;
+      });
+    },
+    /**
+     * 新建个文件对象
+     * @param toDir
+     * @param filename
+     * @returns {{path, extension: string, basename, size: number, name: string, type: string, sync: boolean}}
+     */
+    createNewFileData(toDir, filename) {
+      return {
+        "type": "file",
+        "path": toDir,
+        "name": filename.substring(0, filename.lastIndexOf('.')),
+        "basename": filename,
+        "sync": true,
+        "extension": filename.substring(filename.lastIndexOf('.') + 1),
+        "size": 0,
+      };
+    },
+    /**
+     * ✅同步文件改动到cache
+     * @param fromDir
+     * @param toDir
+     * @param filename
+     * @param pasteMode  'moveFile', 'copyFile'
+     */
+    syncMoveOrCopyFileToCache(fromDir, toDir, filename, pasteMode) {
+      console.log(fromDir, toDir, filename, pasteMode)
+      if(fromDir !== toDir) {
+        const fromPath = fromDir.replace(/\//g, '_');
+        const toPath = this.currentPath.replace(/\//g, '_');
+        // 获取cache obj
+        const fromKey = 'directoryAndFile_' + fromPath;
+        const toKey = 'directoryAndFile_' + toPath;
+        let directoryAndFileMapFromCache = this.$refs.directoryOrFileDetail.getDirectoryAndFileMapFromCache();
+        if((Object.keys(directoryAndFileMapFromCache) || []).indexOf(toKey) > -1) {
+          directoryAndFileMapFromCache[toKey].push(this.createNewFileData(toDir, filename));
+        }
+        if(pasteMode === 'moveFile') {
+          if((Object.keys(directoryAndFileMapFromCache) || []).indexOf(fromKey) > -1) {
+            directoryAndFileMapFromCache[fromKey] = this.filterMoveSuccessFile(directoryAndFileMapFromCache, fromKey, filename);
+          }
+        }
+        this.folderAndFileList = directoryAndFileMapFromCache[toKey];
+        localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapFromCache));
+      }
+    },
+    // ✅同步文件改动到后端
     async syncMoveOrCopyFileRequest(fromDir, toDir, filename) {
       await window.jianghuAxios({
         data: {
@@ -480,76 +541,82 @@ new Vue({
         }
       });
     },
-    refreshData(fromDir, toDir) {
-      this.$refs.list.dataLoading = true;
-      if (this.pasteMode === 'cut') {
-        this.currentCopyPath = null
-      }
-    },
+    /**
+     * ✅粘贴文件
+     * @returns {Promise<void>}
+     */
     async pasteItem() {
-      window.vtoast.loading(this.pasteMode === 'cut' ? '文件移动中' : '文件复制中');
-      if (this.refreshPending) {
+      window.vtoast.loading({message: this.pasteMode === 'cut' ? '文件移动中' : '文件复制中', time: -1});
+      if (this.refreshing) {
         requestAnimationFrame(() => {
           this.pasteItem();
         })
         return;
       }
       const fromDir = this.currentCopyPath.substring(0, this.currentCopyPath.lastIndexOf('/') + 1);
-      const toDir = this.path;
+      const toDir = this.currentPath;
       const filename = this.currentCopyPath.substring(this.currentCopyPath.lastIndexOf('/') + 1);
-      this.$refs.list.syncMoveOrCopyFileToCache(fromDir, toDir, filename, this.pasteMode === 'cut' ? 'moveFile' : 'copyFile');
+      this.currentCopyPath = null;
+      this.syncMoveOrCopyFileToCache(fromDir, toDir, filename, this.pasteMode === 'cut' ? 'moveFile' : 'copyFile');
       await this.syncMoveOrCopyFileRequest(fromDir, toDir, filename);
       window.vtoast.success(this.pasteMode === 'cut' ? '文件移动成功' : '文件复制成功');
-      this.refreshData(fromDir, toDir);
     },
-    async editItem({content, path}) {
-      console.log('editItem', path)
-      this.willEditMd = {
+    /**
+     * ✅修改markdown文件
+     * @param content 新markdown文件内容
+     * @param path markdown文件路径
+     * @returns {Promise<void>}
+     */
+    async prepareUpdateMarkdown({content, path}) {
+      this.willEditMarkdownItem = {
         content: content,
         name: path.substring(path.lastIndexOf('/') + 1)
       };
-      this.isMdEditShow = true;
     },
+    /**
+     * ✅剪切文件
+     * @param path
+     */
     cutItem(path) {
       this.currentCopyPath = path
       this.pasteMode = 'cut'
       window.vtoast.success('<$ constantUiMap.btn.cut $>');
-      console.log('cutItem', this.currentCopyPath)
     },
+    /**
+     * ✅复制文件
+     * @param path
+     */
     copyItem(path) {
       this.currentCopyPath = path
       this.pasteMode = 'copy'
       window.vtoast.success('<$ constantUiMap.btn.copied $>');
-      console.log('copyItem', this.currentCopyPath)
     },
-    readFolderByPath(path) {
-    },
-    // Breadcrumbs.html
-    fileBack() {
-      let path = this.path;
+    /**
+     * ✅上一层
+     */
+    goBack() {
+      let path = this.currentPath;
       if (path.endsWith('/')) {
         path = path.substring(0, path.length - 1);
       }
       if (path !== '') {
-        this.pathChanged(path.substring(0, path.lastIndexOf('/') + 1));
+        this.changeCurrentPath(path.substring(0, path.lastIndexOf('/') + 1));
       } else {
-        this.pathChanged("/")
+        this.changeCurrentPath("/")
       }
     },
-    changeStorage(code) {
-      if (this.activeStorage != code) {
-        this.storageChanged(code)
-        this.pathChanged("")
-      }
-    },
-    changePath(path) {
-      this.pathChanged(path)
+    /**
+     * ✅切换目录
+     * @param path
+     */
+    changeCurrentPath(path) {
+      console.log(path);
+      this.currentPath = path;
     }
   }
 })
 </script>
 
-{% endblock %}
 
 <style>
 .table-toolbar .v-toolbar__content {
@@ -565,6 +632,63 @@ new Vue({
   display: none;
 }
 
+.storage-select-list .v-list-item--disabled {
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #fff;
+}
+
+.storage-select-list .v-list-item--disabled .v-icon {
+  color: #fff;
+}
+
+.v-breadcrumbs {
+  margin-top: -3px;
+}
+
+.v-breadcrumbs li {
+  font-size: 12px;
+}
+
+.v-toolbar__content .v-snack__wrapper {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.v-toolbar__content .v-snack__content {
+  padding: 0;
+  height: 30px;
+  line-height: 30px;
+}
+.file-list {
+  max-height: calc(100vh - 195px);
+  overflow: auto;
+}
+body .v-menu__content {
+  margin-top: 20px;
+}
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td, .v-data-table > .v-data-table__wrapper > table > tfoot > tr > td, .v-data-table > .v-data-table__wrapper > table > thead > tr > td {
+  color: #41434f;
+}
+
+td:not(.v-picker td), th:not(.v-picker th) {
+  border-bottom: thin solid rgba(0, 0, 0, .06) !important;
+}
+td:not(:first-child):not(.v-picker td), th:not(:first-child):not(.v-picker th) {
+  border-left: 0!important;
+}
+.dataLoading {
+  position: absolute;
+  z-index: 999;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.listDataTable {
+  padding: 0!important;
+}
+.listDataTable td {
+  white-space: nowrap!important;
+}
 @media screen and (max-width: 500px) {
   body .custom-cloudDrive {
     max-height: calc(100vh - 156px) !important;
@@ -606,8 +730,6 @@ new Vue({
   body .table-toolbar .v-toolbar__content > div:first-child {
     min-width: calc(100vw - 35px) !important;
   }
-
-  body .custom-list-panel {
-  }
 }
 </style>
+{% endblock %}

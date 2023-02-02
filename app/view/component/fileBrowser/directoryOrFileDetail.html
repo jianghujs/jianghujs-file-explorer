@@ -1,15 +1,14 @@
 <template id="fileBrowser-list">
   <v-card flat>
-    <confirm ref="confirm"></confirm>
 
-    <v-card-text v-if="!path" class="grow d-flex justify-center align-center grey--text"><$ constantUiMap.btn.selectFile $>
+    <v-card-text v-if="!currentPath" class="grow d-flex justify-center align-center grey--text"><$ constantUiMap.btn.selectFile $>
     </v-card-text>
 
-    <!-- 文件预览 -->
-    <v-card-text v-else-if="isFile" class="grow d-flex justify-center align-center">
+    <!-- 文件 -->
+    <v-card-text v-else-if="currentPathIsFile" class="grow d-flex justify-center align-center">
       <div class="flex flex-column justify-center align-center text-center">
         <div v-if="fileType === 'markdown'" style="height: calc(100vh - 240px); overflow: auto;">
-          <div style="text-align: left;"><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${path}` }}</div>
+          <div style="text-align: left;"><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}` }}</div>
           <md2html v-if="viewingMarkdown" :article-content="viewingMarkdown"></md2html>
           <div v-else class="d-flex align-center pa-10" style="justify-content: center">
             <v-progress-circular indeterminate :size="30" color="primary"></v-progress-circular>
@@ -18,38 +17,38 @@
         </div>
         <template v-else>
           <v-img v-if="fileType === 'image'" min-width="30" max-width="500" min-height="30" max-height="500"
-                 :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}?v=${new Date().getTime()}`" :key="path"
+                 :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
                  lazy-src=""
                  class="grey lighten-2 mb-5" style="margin: auto; cursor: pointer;"
-                 @click="openFile(`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}?v=${new Date().getTime()}`)">
+                 @click="openFile(`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`)">
           </v-img>
           <video v-if="fileType === 'video'" width="80%" min-width="30" max-width="500" min-height="30" max-height="500"
                  style="height: 70vh"
-                 :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}?v=${new Date().getTime()}`" :key="path"
+                 :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
                  lazy-src=""
                  class="grey lighten-2 mb-5" style="display: block; margin: auto;" controls>
-            <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}?v=${new Date().getTime()}`"
+            <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`"
                     type="video/mp4">
           </video>
           <audio v-if="fileType === 'audio'" min-width="30" max-width="500" min-height="30" max-height="500"
-                 :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}?v=${new Date().getTime()}`" :key="path"
+                 :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
                  lazy-src=""
                  class="my-10" style="display: block; margin: auto;" controls>
-            <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}?v=${new Date().getTime()}`"
+            <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`"
                     type="audio/mpeg">
           </audio>
-          <div><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${path}` }}</div>
+          <div><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}` }}</div>
         </template>
       </div>
     </v-card-text>
-
+    <!--目录-->
     <template v-else>
-      <div v-if="dataLoading && !dirs.length && !files.length && isDir" class="d-flex align-center pa-10 dataLoading" style="justify-content: center">
+      <div v-if="directoryRefreshStatus && !directoryList.length && !fileList.length && currentPathIsDir" class="d-flex align-center pa-10 directoryRefreshStatus" style="justify-content: center">
         <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
         <span>读取目录中</span>
       </div>
       <!-- 文件列表 -->
-      <v-card-text v-if="dirs.length || files.length" class="pa-0">
+      <v-card-text v-if="directoryList.length || fileList.length" class="pa-0">
 
         <v-data-table
             :headers="headers"
@@ -62,10 +61,12 @@
             :class="{'zebraLine': showTableZebraLine }"
             checkbox-color="success"
             fixed-header
-            :data-bottom="110"
+            :data-bottom="85"
             class="elevation-0 listDataTable fixed-table-height elevation-0 mt-0 mb-xs-4 flex-fill d-flex flex-column"
         >
+          <!--文件名-->
           <template v-slot:item.name="{ item }">
+            <!--文件名、图片-->
             <div v-if="item.type === 'dir'" @click="changePath(item.path)" role="button">
               <v-icon v-if="item.basename.endsWith('_recycle')">mdi-delete-clock-outline</v-icon>
               <v-icon v-else>mdi-folder-outline</v-icon>
@@ -79,63 +80,80 @@
                     class=""
                     size="25"
                 >
-                  <v-img :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${path}/${item.basename}`"></v-img>
+                  <v-img :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}/${item.basename}`"></v-img>
                 </v-avatar>
-                <v-icon v-else>{{ icons[item.extension.toLowerCase()] || icons['other'] }}</v-icon>
+                <v-icon v-else>{{ fileIconList[item.extension.toLowerCase()] || fileIconList['other'] }}</v-icon>
               </template>
               <span style="flex: 1; line-height: 25px" class="ml-2">{{ item.basename }}</span>
             </div>
           </template>
+          <!--文件大小-->
           <template v-slot:item.size="{ item }">
-            {{ item.type === 'file' ? (item.size ? formatBytes(item.size) : '-') : '' }}
+            {{ item.type === 'file' ? (item.size ? parseFileSize(item.size) : '-') : '' }}
           </template>
+          <!--文件类型-->
           <template v-slot:item.mtime="{ item }">
             {{ item.type === 'file' ? (item.type === 'file' && item.mtime ? dayjs.unix(item.mtime).format("YYYY-MM-DD HH:mm:ss") : '-') : '' }}
           </template>
+          <!--文件操作-->
           <template v-slot:item.action="{ item }">
-            <div class="text-right" v-if="item.type === 'dir' && path !== '/'">
+            <!--文件夹操作-->
+            <div class="text-right" v-if="item.type === 'dir' && currentPath !== '/'">
+              <!--删除-->
               <v-tooltip top v-if="operationOption.delete === true && item.path.indexOf('/_recycle/') === -1 && roleId === 'teacher'">
                 <template v-slot:activator="{ on, attrs }">
-                  <v-btn v-bind="attrs" v-on="on"  icon @click.stop="deleteItem(item)">
-                    <v-progress-circular v-if="deleteIngItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                  <v-btn v-bind="attrs" v-on="on" icon @click.stop="startDeleteItem(item)">
+                    <v-progress-circular v-if="currentDeleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                     <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
                   </v-btn>
                 </template>
                 <span>移入回收站</span>
               </v-tooltip>
             </div>
+            <!--文件操作-->
             <template v-if="item.type === 'file'">
+              <!--非回收站的文件、文件夹操作-->
               <div class="text-right" v-if="item.path.indexOf('_recycle') === -1">
                 <template v-if="item.sync">
                   <v-progress-circular indeterminate :size="18" color="primary"></v-progress-circular>
                   <span>同步中</span>
                 </template>
                 <template v-else>
+                  <!--文档编辑-->
                   <v-tooltip top v-if="item.extension === 'md'">
                     <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="editItem(item)">
-                        <v-progress-circular v-if="loadMdContentPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="editMarkdownItem(item)">
+                        <v-progress-circular v-if="loadingCurrentMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                         <v-icon v-else color="grey lighten-1" style="font-size: 20px;">mdi-text-box-edit-outline</v-icon>
                       </v-btn>
                     </template>
                     <span>编辑文档</span>
                   </v-tooltip>
-                  <v-menu v-if="operationOption.renameFile === true" v-model="item.newFolderPopper"
-                          :close-on-content-click="false" :nudge-width="200" offset-y>
-                    <template v-slot:activator="{ on }">
-                        <span>
-                            <v-btn v-if="path" icon v-on="on" @click="item.newFilename=item.basename;">
-                                <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-rename-box</v-icon>
-                            </v-btn>
-                        </span>
+                  <!--剪切-->
+                  <v-tooltip top v-if="operationOption.copy === true && roleId === 'teacher'">
+                    <template v-slot:activator="{ on, attrs }">
+                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="cutItem(item)">
+                        <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-cut</v-icon>
+                      </v-btn>
                     </template>
+                    <span>剪切</span>
+                  </v-tooltip>
+                  <!--重命名-->
+                  <v-menu v-if="operationOption.renameFile === true" v-model="item.newFolderPopper" :close-on-content-click="false" :nudge-width="200" offset-y>
+                    <template v-slot:activator="{ on }">
+                      <v-btn v-if="currentPath" icon v-on="on" @click="item.newFilename=item.basename;">
+                        <v-tooltip top>
+                          <template v-slot:activator="{ on, attrs }">
+                            <v-icon color="grey lighten-1" v-on="on" style="font-size: 20px;">mdi-rename-box</v-icon>
+                          </template>
+                          <span>重命名</span>
+                        </v-tooltip>
+                      </v-btn>
+                    </template>
+                    <!--重命名弹窗-->
                     <v-card>
                       <v-card-text>
-                        <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="item.newFilename" hide-details
-                                      color="success"
-                                      dense
-                                      filled
-                                      single-line></v-text-field>
+                        <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="item.newFilename" hide-details color="success" dense filled single-line></v-text-field>
                       </v-card-text>
                       <v-card-actions>
                         <div class="flex-grow-1"></div>
@@ -146,14 +164,7 @@
                       </v-card-actions>
                     </v-card>
                   </v-menu>
-                  <v-tooltip top v-if="operationOption.copy === true && roleId === 'teacher'">
-                    <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="cutItem(item)">
-                        <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-cut</v-icon>
-                      </v-btn>
-                    </template>
-                    <span>剪切</span>
-                  </v-tooltip>
+                  <!--复制-->
                   <v-tooltip top v-if="operationOption.copy === true">
                     <template v-slot:activator="{ on, attrs }">
                       <v-btn v-bind="attrs" v-on="on" icon @click.stop="copyItem(item)">
@@ -162,10 +173,11 @@
                     </template>
                     <span>复制</span>
                   </v-tooltip>
+                  <!--删除-->
                   <v-tooltip top v-if="operationOption.delete === true && roleId === 'teacher'">
                     <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="deleteItem(item)">
-                        <v-progress-circular v-if="deleteIngItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="startDeleteItem(item)">
+                        <v-progress-circular v-if="currentDeleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                         <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
                       </v-btn>
                     </template>
@@ -174,6 +186,7 @@
                 </template>
               </div>
               <div v-else class="text-right">
+                <!--回收站事件：剪切-->
                 <v-tooltip top v-if="operationOption.copy === true && roleId === 'teacher'">
                   <template v-slot:activator="{ on, attrs }">
                     <v-btn v-bind="attrs" v-on="on" icon @click.stop="cutItem(item)">
@@ -187,7 +200,6 @@
           </template>
           <!--表格底部右侧功能按钮-->
           <template v-slot:footer.prepend>
-
             <v-menu top offset-y :close-on-content-click="false">
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" icon>
@@ -203,57 +215,48 @@
           </template>
           <!--表格底部右侧分页-->
           <template v-slot:footer.page-text="pagination">
-            <span>{{pagination.pageStart}}-{{pagination.pageStop}}</span>
-            <span class="ml-1">共{{pagination.itemsLength}}条</span>
+            <span>{{ pagination.pageStart }}-{{ pagination.pageStop }}</span>
+            <span class="ml-1">共{{ pagination.itemsLength }}条</span>
           </template>
         </v-data-table>
       </v-card-text>
       <!-- 为空提示 -->
-      <v-card-text v-else-if="filter" class="grow d-flex justify-center align-center grey--text" style="padding: 150px 0">
-        {{ dataLoading ? '' : '<$ constantUiMap.btn.fileNotFound $>' }}
+      <v-card-text v-else-if="tableSearchText" class="grow d-flex justify-center align-center grey--text" style="padding: 150px 0">
+        {{ directoryRefreshStatus ? '' : '<$ constantUiMap.btn.fileNotFound $>' }}
       </v-card-text>
       <v-card-text v-else class="grow d-flex justify-center align-center grey--text" style="padding: 150px 0">
-        {{ dataLoading ? '' : '<$ constantUiMap.btn.folderEmpty $>' }}
+        {{ directoryRefreshStatus ? '' : '<$ constantUiMap.btn.folderEmpty $>' }}
       </v-card-text>
     </template>
   </v-card>
 </template>
 
 <script>
-Vue.component("list", {
+Vue.component("directoryOrFileDetail", {
   vuetify: new Vuetify(),
-  name: 'list',
+  name: 'directoryOrFileDetail',
   template: '#fileBrowser-list',
   props: {
-    icons: Object,
+    fileIconList: Object,
     roleId: String,
-    storage: String,
-    path: String,
-    endpoints: Object,
-    axios: Function,
-    refreshPending: Boolean,
+    currentPath: String,
+    refreshing: Boolean,
     operationOption: Object,
-    filter: String
+    tableSearchText: String
   },
   data() {
     return {
+      r_fileOrDirList: [],
       host: window.location.host,
       folderAndFileList: [],
       showTableZebraLine: true,
-      page: 1,
-      pageSize: 20,
-      dataLoading: false,
+      directoryRefreshStatus: false,
       oldPath: '',
-      deleteIngItemPath: null,
-      loadMdContentPath: null,
+      currentDeleteItemPath: null,
+      loadingCurrentMarkdownPath: null,
       viewingMarkdown: null,
       headers: [
-        {
-          text: '文件名',
-          align: 'start',
-          value: 'name',
-          width: '40%'
-        },
+        {text: '文件名', align: 'start', value: 'name', width: '40%'},
         {text: '大小', value: 'size', width: '20%'},
         {text: '更新时间', value: 'mtime', width: '20%'},
         {text: '', value: 'action', sortable: false}
@@ -262,37 +265,29 @@ Vue.component("list", {
     };
   },
   computed: {
-    dirs() {
+    directoryList() {
       const list = this.folderAndFileList.filter(
-          item => item.type === "dir" && item.basename.includes(this.filter)
+          item => item.type === "dir" && item.basename.includes(this.tableSearchText)
       );
-      if(this.roleId !== 'teacher') {
-        return list.filter(item => !item.basename.endsWith('_recycle') );
-      }
+      list.sort((a, b) => (b.basename.includes('_recycle')) - (a.basename.includes('_recycle')))
       return list;
     },
-    files() {
+    fileList() {
       return this.folderAndFileList.filter(
-          item => item.type === "file" && item.basename.includes(this.filter)
+          item => item.type === "file" && item.basename.includes(this.tableSearchText)
       );
     },
     tableData() {
-      return this.dirs.concat(this.files)
+      return this.directoryList.concat(this.fileList)
     },
-    totalCount() {
-      return this.files.length;
+    currentPathIsDir() {
+      return this.currentPath[this.currentPath.length - 1] === "/";
     },
-    totalPage() {
-      return Math.ceil(this.files.length / this.pageSize);
-    },
-    isDir() {
-      return this.path[this.path.length - 1] === "/";
-    },
-    isFile() {
-      return !this.isDir;
+    currentPathIsFile() {
+      return !this.currentPathIsDir;
     },
     fileType() {
-      const ext = this.path.substring(this.path.lastIndexOf('.') + 1);
+      const ext = this.currentPath.substring(this.currentPath.lastIndexOf('.') + 1);
       if (ext) {
         if (['jpg', 'jpeg', 'png', 'gif', 'ico', 'svg'].includes(ext.toLowerCase())) {
           return 'image';
@@ -310,9 +305,48 @@ Vue.component("list", {
       return '';
     }
   },
+
+  async created() {
+    this.oldPath = this.currentPath;
+    this.folderAndFileList = [];
+    await this.doUiAction('getDirectoryDataFromCache', this.currentPath);
+    this.directoryRefreshStatus = true;
+  },
+  watch: {
+    // 监听刷新状态
+    async directoryRefreshStatus(value, oValue) {
+      this.$emit('refresh-status-change', value);
+      if (value && !oValue || this.oldPath !== this.currentPath) {
+        this.oldPath = this.currentPath;
+        await this.getDirectoryAndFileListByPath('watch:directoryRefreshStatus');
+      }
+      this.$emit("refresh-done");
+    },
+    async currentPath() {
+      this.folderAndFileList = [];
+      this.syncCacheData(this.currentPath);
+      this.directoryRefreshStatus = true;
+    },
+    async refreshing(value) {
+      if (value) {
+        this.directoryRefreshStatus = true;
+      }
+    },
+    fileType(value) {
+      if (value === 'markdown') {
+        this.getMarkdownDetail();
+      } else {
+        this.viewingMarkdown = null;
+      }
+    }
+  },
   methods: {
-    getTotalCount() {
-      return this.tableData.length;
+    async doUiAction(uiActionId, uiActionData) {
+      switch (uiActionId) {
+        case 'getDirectoryDataFromCache':
+          this.syncCacheData(uiActionData);
+          break;
+      }
     },
     checkIsImg(filename) {
       return /\.(jpg|jpeg|png|GIF|JPG|PNG)$/.test(filename);
@@ -320,45 +354,50 @@ Vue.component("list", {
     changePath(path) {
       this.$emit("path-changed", path);
     },
-    addTempMdFile(mdName) {
-      let folderAndFileMap = this.getFolderAndFileMapFromCache();
-      const getPath = this.path.replace(/\//g, '_');
-      const getKey = 'folderAndFile_' + getPath;
-      if(!folderAndFileMap.hasOwnProperty(getKey)) {
-        folderAndFileMap[getKey] = [];
-      }
-      const mdExist = folderAndFileMap[getKey].some(item => {
-        if(item.name === mdName) {
-          item.sync = true;
-          return true;
-        }
-        return false
-      })
-      if(!mdExist)
-      folderAndFileMap[getKey].push({
+    createNewMarkdownFileObject(mdName) {
+      return {
         "type": "file",
-        "path": this.path,
+        "path": this.currentPath,
         "name": `${mdName}.md`,
         "basename": `${mdName}.md`,
         "sync": true,
         "extension": "md",
         "size": 16,
-      });
-      this.folderAndFileList = folderAndFileMap[getKey];
-      localStorage.setItem('folderAndFileMap', JSON.stringify(folderAndFileMap));
+      };
     },
-    async getFolderAndFileListByPath(prevMethod) {
-      console.log("getFolderAndFileListByPath::prevMethod", prevMethod);
-      this.$emit("loading", true);
-      if (this.isDir) {
-        const path = this.path;
-        const fileOrDirList = await this.getDataRequest(path);
-        this.syncCacheData(path, fileOrDirList);
-      } else {
-        // TODO: getFolderAndFileListByPath file
+    checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName) {
+      return directoryAndFileMapCache[getKey].some(item => {
+        if (item.name === mdName) {
+          item.sync = true;
+          return true;
+        }
+        return false
+      });
+    },
+    addMarkdownFileToCache(mdName) {
+      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
+      const getPath = this.currentPath.replace(/\//g, '_');
+      const getKey = 'directoryAndFile_' + getPath;
+      if (!directoryAndFileMapCache.hasOwnProperty(getKey)) {
+        directoryAndFileMapCache[getKey] = [];
       }
-      this.dataLoading = false;
-      this.$emit("loading", false);
+      const mdExist = this.checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName)
+      if (!mdExist) {
+        directoryAndFileMapCache[getKey].push(this.createNewMarkdownFileObject(mdName));
+      }
+      this.folderAndFileList = directoryAndFileMapCache[getKey];
+      localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
+    },
+    async getDirectoryAndFileListByPath(callThisAction) {
+      this.$emit("total-change", this.tableData.length);
+      if (this.currentPathIsDir) {
+        const path = this.currentPath;
+        this.r_fileOrDirList = await this.getDataRequest(path);
+        this.syncCacheData(path, this.r_fileOrDirList);
+      }
+      requestAnimationFrame(resetTableMaxHeight)
+      this.directoryRefreshStatus = false;
+      this.$emit("total-change", this.tableData.length);
     },
     async getDataRequest(path) {
       return (await window.jianghuAxios({
@@ -371,23 +410,22 @@ Vue.component("list", {
         }
       })).data.appData.resultData.rows;
     },
-    async deleteItem(item) {
-      let confirmed = await this.$refs.confirm.open(
-          false,
-          `<$ constantUiMap.btn.sureDelete $>${item.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"
-          }? <br/> <em>${item.basename}</em>`
+    async startDeleteItem(item) {
+      let confirmed = await window.confirmDialog({
+            title:
+                `<$ constantUiMap.btn.sureDelete $>${item.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}? \n ${item.basename}`
+          }
       );
-
       if (confirmed) {
         this.$emit("loading", true);
-        await this.syncDeleteRequest(item);
-        this.dataLoading = true;
+        await this.doDeleteRequest(item);
+        this.directoryRefreshStatus = true;
         this.$emit("file-deleted");
         this.$emit("loading", false);
       }
     },
-    async syncDeleteRequest(item) {
-      this.deleteIngItemPath = item.path;
+    async doDeleteRequest(item) {
+      this.currentDeleteItemPath = item.path;
       await window.jianghuAxios({
         data: {
           appData: {
@@ -397,9 +435,9 @@ Vue.component("list", {
           }
         }
       })
-      this.deleteIngItemPath = null;
+      this.currentDeleteItemPath = null;
     },
-    async markdownDetailRequest(path) {
+    async getMarkdownDetailRequest(path) {
       return (await window.jianghuAxios({
         data: {
           appData: {
@@ -413,53 +451,22 @@ Vue.component("list", {
       })).data.appData.resultData.mdContent;
     },
     async getMarkdownDetail() {
-      this.viewingMarkdown = await this.markdownDetailRequest(this.path);
+      this.viewingMarkdown = await this.getMarkdownDetailRequest(this.currentPath);
     },
-    async editItem(item) {
-      this.loadMdContentPath = item.path;
-      const result = await this.markdownDetailRequest(item.path);
-      this.loadMdContentPath = null;
-      this.$emit("edit-item", {content: result, path: item.path});
+    async editMarkdownItem(item) {
+      this.loadingCurrentMarkdownPath = item.path;
+      const result = await this.getMarkdownDetailRequest(item.path);
+      this.loadingCurrentMarkdownPath = null;
+      this.$emit("edit-markdown-item", {content: result, path: item.path});
     },
     async cutItem(item) {
       this.$emit("cut-item", item.path);
     },
-    // pasteMode: 'moveFile', 'copyFile'
-    syncMoveOrCopyFileToCache(fromDir, toDir, filename, pasteMode) {
-      console.log(fromDir, toDir, filename, pasteMode)
-      if(fromDir !== toDir) {
-        const fromPath = fromDir.replace(/\//g, '_');
-        const toPath = this.path.replace(/\//g, '_');
-        // 获取cache obj
-        const fromKey = 'folderAndFile_' + fromPath;
-        const toKey = 'folderAndFile_' + toPath;
-        let folderAndFileMap = this.getFolderAndFileMapFromCache();
-        if((Object.keys(folderAndFileMap) || []).indexOf(toKey) > -1) {
-          folderAndFileMap[toKey].push({
-            "type": "file",
-            "path": toDir,
-            "name": filename.substring(0, filename.lastIndexOf('.')),
-            "basename": filename,
-            "sync": true,
-            "extension": filename.substring(filename.lastIndexOf('.') + 1),
-            "size": 0,
-          });
-        }
-        if(pasteMode === 'moveFile') {
-          if((Object.keys(folderAndFileMap) || []).indexOf(fromKey) > -1) {
-            folderAndFileMap[fromKey] = folderAndFileMap[fromKey].filter(item => {
-              return item.basename !== filename;
-            });
-          }
-        }
-        this.folderAndFileList = folderAndFileMap[toKey];
-        localStorage.setItem('folderAndFileMap', JSON.stringify(folderAndFileMap));
-      }
-    },
+
     async copyItem(item) {
       this.$emit("copy-item", item.path);
     },
-    formatBytes(bytes, decimals = 2) {
+    parseFileSize(bytes, decimals = 2) {
       if (bytes === 0) return '0 bytes';
 
       const k = 1024;
@@ -482,9 +489,9 @@ Vue.component("list", {
       window.vtoast.loading("<$ constantUiMap.btn.fileRename $>");
       await this.syncRenameRequest(path, newFilename);
       item.newFolderPopper = false;
-      await this.getFolderAndFileListByPath('renameFile');
-      const isDir = item.path[item.path.length - 1] === "/";
-      const pathDir = isDir ? item.path : item.path.substring(0, item.path.lastIndexOf('/') + 1);
+      await this.getDirectoryAndFileListByPath('renameFile');
+      const currentPathIsDir = item.path[item.path.length - 1] === "/";
+      const pathDir = currentPathIsDir ? item.path : item.path.substring(0, item.path.lastIndexOf('/') + 1);
       this.$emit("read-folder-by-path", pathDir);
       window.vtoast.success('<$ constantUiMap.btn.renamedSuccess $>');
     },
@@ -502,69 +509,37 @@ Vue.component("list", {
         }
       })
     },
-    getFolderAndFileMapFromCache() {
-      let folderAndFileMap = localStorage.getItem('folderAndFileMap');
+    // 读取缓存数据
+    getDirectoryAndFileMapFromCache() {
+      let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
       try {
-        folderAndFileMap = JSON.parse(folderAndFileMap);
+        directoryAndFileMapCache = JSON.parse(directoryAndFileMapCache);
       } catch (err) {
-        folderAndFileMap = {};
+        directoryAndFileMapCache = {};
       }
-      if(!folderAndFileMap) {
-        folderAndFileMap = {};
+      if (!directoryAndFileMapCache) {
+        directoryAndFileMapCache = {};
       }
-      return folderAndFileMap;
+      return directoryAndFileMapCache;
     },
-    // 从缓存读取、更新
-    syncCacheData(oldPath, fileOrDirList) {
+    // 同步缓存数据
+    syncCacheData(oldPath, r_fileOrDirList) {
       const savePath = oldPath.replace(/\//g, '_');
-      const getPath = this.path.replace(/\//g, '_');
+      const getPath = this.currentPath.replace(/\//g, '_');
       // 获取cache obj
-      const saveKey = 'folderAndFile_' + savePath;
-      const getKey = 'folderAndFile_' + getPath;
-      let folderAndFileMap = this.getFolderAndFileMapFromCache();
+      const saveKey = 'directoryAndFile_' + savePath;
+      const getKey = 'directoryAndFile_' + getPath;
+      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
       // 保存到cache
-      if(fileOrDirList) {
-        folderAndFileMap[saveKey] = fileOrDirList;
-        localStorage.setItem('folderAndFileMap', JSON.stringify(folderAndFileMap));
+      if (r_fileOrDirList) {
+        directoryAndFileMapCache[saveKey] = _.cloneDeep(r_fileOrDirList);
+        localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
       }
       // 从cache中取值
-      if((Object.keys(folderAndFileMap) || []).indexOf(getKey) > -1) {
-        this.folderAndFileList = folderAndFileMap[getKey];
+      if ((Object.keys(directoryAndFileMapCache) || []).indexOf(getKey) > -1) {
+        this.folderAndFileList = directoryAndFileMapCache[getKey];
       } else {
         this.folderAndFileList = [];
-      }
-    }
-  },
-  async created() {
-    this.oldPath = this.path;
-    this.folderAndFileList = [];
-    this.syncCacheData(this.path);
-    this.dataLoading = true;
-  },
-  watch: {
-    async dataLoading(value, oValue) {
-      this.$emit('data-loading', value);
-      if (value && !oValue || this.oldPath !== this.path) {
-        this.oldPath = this.path;
-        await this.getFolderAndFileListByPath('watch:dataLoading');
-        this.$emit("refreshed");
-      }
-    },
-    async path() {
-      this.folderAndFileList = [];
-      this.syncCacheData(this.path);
-      this.dataLoading = true;
-    },
-    async refreshPending(value) {
-      if (value) {
-        this.dataLoading = true;
-      }
-    },
-    fileType(value) {
-      if(value === 'markdown') {
-        this.getMarkdownDetail();
-      } else {
-        this.viewingMarkdown = null;
       }
     }
   },
@@ -572,36 +547,5 @@ Vue.component("list", {
 </script>
 
 <style scoped>
-.file-list {
-  max-height: calc(100vh - 195px);
-  overflow: auto;
-}
-body .v-menu__content {
-  margin-top: 20px;
-}
-.v-data-table > .v-data-table__wrapper > table > tbody > tr > td, .v-data-table > .v-data-table__wrapper > table > tfoot > tr > td, .v-data-table > .v-data-table__wrapper > table > thead > tr > td {
-  color: #41434f;
-  min-height: 52px;
-  height: 52px;
-}
 
-td:not(.v-picker td), th:not(.v-picker th) {
-  border-bottom: thin solid rgba(0, 0, 0, .06) !important;
-}
-td:not(:first-child):not(.v-picker td), th:not(:first-child):not(.v-picker th) {
-  border-left: 0!important;
-}
-.dataLoading {
-  position: absolute;
-  z-index: 999;
-  top: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.listDataTable {
-  padding: 0!important;
-}
-.listDataTable td {
-  white-space: nowrap!important;
-}
 </style>
