@@ -4,12 +4,12 @@
     <v-card-text v-if="!currentPath" class="grow d-flex justify-center align-center grey--text"><$ constantUiMap.btn.selectFile $>
     </v-card-text>
 
-    <!-- 文件 -->
+    <!-- ✅文件详情 >>>>>>>>>>>> -->
     <v-card-text v-else-if="currentPathIsFile" class="grow d-flex justify-center align-center">
       <div class="flex flex-column justify-center align-center text-center">
         <div v-if="fileType === 'markdown'" style="height: calc(100vh - 240px); overflow: auto;">
           <div style="text-align: left;"><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}` }}</div>
-          <md2html v-if="viewingMarkdown" :article-content="viewingMarkdown"></md2html>
+          <md2html v-if="currentMarkdownContent" :article-content="currentMarkdownContent"></md2html>
           <div v-else class="d-flex align-center pa-10" style="justify-content: center">
             <v-progress-circular indeterminate :size="30" color="primary"></v-progress-circular>
             <span>加载中</span>
@@ -41,13 +41,15 @@
         </template>
       </div>
     </v-card-text>
-    <!--目录-->
+    <!-- ✅<<<<<<<<<<<< 文件详情  -->
+    <!--✅目录>>>>>>>>>>>>>>>>>>>-->
     <template v-else>
+      <!--✅目录加载中-->
       <div v-if="directoryRefreshStatus && !directoryList.length && !fileList.length && currentPathIsDir" class="d-flex align-center pa-10 directoryRefreshStatus" style="justify-content: center">
         <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
         <span>读取目录中</span>
       </div>
-      <!-- 文件列表 -->
+      <!-- ✅文件列表 -->
       <v-card-text v-if="directoryList.length || fileList.length" class="pa-0">
 
         <v-data-table
@@ -64,15 +66,15 @@
             :data-bottom="85"
             class="elevation-0 listDataTable fixed-table-height elevation-0 mt-0 mb-xs-4 flex-fill d-flex flex-column"
         >
-          <!--文件名-->
+          <!--✅文件名-->
           <template v-slot:item.name="{ item }">
-            <!--文件名、图片-->
-            <div v-if="item.type === 'dir'" @click="changePath(item.path)" role="button">
+            <!--✅文件名、图片-->
+            <div v-if="item.type === 'dir'" @click="doUiAction('openDirectoryOrFile', item.path)" role="button">
               <v-icon v-if="item.basename.endsWith('_recycle')">mdi-delete-clock-outline</v-icon>
               <v-icon v-else>mdi-folder-outline</v-icon>
               <span class="ml-2">{{ item.basename.endsWith('_recycle') ? '回收站' : item.basename }}</span>
             </div>
-            <div v-else @click="changePath(item.path)" class="d-flex" role="button">
+            <div v-else @click="doUiAction('openDirectoryOrFile', item.path)" class="d-flex" role="button">
               <template>
                 <v-avatar
                     tile
@@ -87,22 +89,22 @@
               <span style="flex: 1; line-height: 25px" class="ml-2">{{ item.basename }}</span>
             </div>
           </template>
-          <!--文件大小-->
+          <!--✅文件大小-->
           <template v-slot:item.size="{ item }">
             {{ item.type === 'file' ? (item.size ? parseFileSize(item.size) : '-') : '' }}
           </template>
-          <!--文件类型-->
+          <!--✅文件类型-->
           <template v-slot:item.mtime="{ item }">
             {{ item.type === 'file' ? (item.type === 'file' && item.mtime ? dayjs.unix(item.mtime).format("YYYY-MM-DD HH:mm:ss") : '-') : '' }}
           </template>
-          <!--文件操作-->
+          <!--✅文件操作-->
           <template v-slot:item.action="{ item }">
-            <!--文件夹操作-->
+            <!--✅文件夹操作-->
             <div class="text-right" v-if="item.type === 'dir' && currentPath !== '/'">
-              <!--删除-->
+              <!--✅删除-->
               <v-tooltip top v-if="operationOption.delete === true && item.path.indexOf('/_recycle/') === -1 && roleId === 'teacher'">
                 <template v-slot:activator="{ on, attrs }">
-                  <v-btn v-bind="attrs" v-on="on" icon @click.stop="startDeleteItem(item)">
+                  <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('startDeleteItem', item)">
                     <v-progress-circular v-if="currentDeleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                     <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
                   </v-btn>
@@ -110,38 +112,38 @@
                 <span>移入回收站</span>
               </v-tooltip>
             </div>
-            <!--文件操作-->
+            <!--✅文件操作-->
             <template v-if="item.type === 'file'">
-              <!--非回收站的文件、文件夹操作-->
+              <!--✅非回收站的文件、文件夹操作-->
               <div class="text-right" v-if="item.path.indexOf('_recycle') === -1">
                 <template v-if="item.sync">
                   <v-progress-circular indeterminate :size="18" color="primary"></v-progress-circular>
                   <span>同步中</span>
                 </template>
                 <template v-else>
-                  <!--文档编辑-->
+                  <!--✅文档编辑-->
                   <v-tooltip top v-if="item.extension === 'md'">
                     <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="editMarkdownItem(item)">
-                        <v-progress-circular v-if="loadingCurrentMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('editMarkdown', item)">
+                        <v-progress-circular v-if="currentMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                         <v-icon v-else color="grey lighten-1" style="font-size: 20px;">mdi-text-box-edit-outline</v-icon>
                       </v-btn>
                     </template>
                     <span>编辑文档</span>
                   </v-tooltip>
-                  <!--剪切-->
+                  <!--✅剪切-->
                   <v-tooltip top v-if="operationOption.copy === true && roleId === 'teacher'">
                     <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="cutItem(item)">
+                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
                         <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-cut</v-icon>
                       </v-btn>
                     </template>
                     <span>剪切</span>
                   </v-tooltip>
-                  <!--重命名-->
+                  <!--✅重命名-->
                   <v-menu v-if="operationOption.renameFile === true" v-model="item.newFolderPopper" :close-on-content-click="false" :nudge-width="200" offset-y>
                     <template v-slot:activator="{ on }">
-                      <v-btn v-if="currentPath" icon v-on="on" @click="item.newFilename=item.basename;">
+                      <v-btn v-if="currentPath" icon v-on="on" @click="doUiAction('startRenameItem', item)">
                         <v-tooltip top>
                           <template v-slot:activator="{ on, attrs }">
                             <v-icon color="grey lighten-1" v-on="on" style="font-size: 20px;">mdi-rename-box</v-icon>
@@ -150,7 +152,7 @@
                         </v-tooltip>
                       </v-btn>
                     </template>
-                    <!--重命名弹窗-->
+                    <!--✅重命名弹窗-->
                     <v-card>
                       <v-card-text>
                         <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="item.newFilename" hide-details color="success" dense filled single-line></v-text-field>
@@ -158,25 +160,25 @@
                       <v-card-actions>
                         <div class="flex-grow-1"></div>
                         <v-btn @click="item.newFolderPopper = false" small depressed><$ constantUiMap.btn.cancel $></v-btn>
-                        <v-btn small color="success" :disabled="!item.newFilename" depressed @click="renameFile(item)"><$
+                        <v-btn small color="success" :disabled="!item.newFilename" depressed @click="doUiAction('doRename', item)"><$
                           constantUiMap.btn.rename $>
                         </v-btn>
                       </v-card-actions>
                     </v-card>
                   </v-menu>
-                  <!--复制-->
+                  <!--✅复制-->
                   <v-tooltip top v-if="operationOption.copy === true">
                     <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="copyItem(item)">
+                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('copyItem', item)">
                         <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-copy</v-icon>
                       </v-btn>
                     </template>
                     <span>复制</span>
                   </v-tooltip>
-                  <!--删除-->
+                  <!--✅删除-->
                   <v-tooltip top v-if="operationOption.delete === true && roleId === 'teacher'">
                     <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="startDeleteItem(item)">
+                      <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('startDeleteItem', item)">
                         <v-progress-circular v-if="currentDeleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                         <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
                       </v-btn>
@@ -186,10 +188,10 @@
                 </template>
               </div>
               <div v-else class="text-right">
-                <!--回收站事件：剪切-->
+                <!--✅回收站事件：剪切-->
                 <v-tooltip top v-if="operationOption.copy === true && roleId === 'teacher'">
                   <template v-slot:activator="{ on, attrs }">
-                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="cutItem(item)">
+                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
                       <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-cut</v-icon>
                     </v-btn>
                   </template>
@@ -198,7 +200,7 @@
               </div>
             </template>
           </template>
-          <!--表格底部右侧功能按钮-->
+          <!--✅表格底部右侧功能按钮-->
           <template v-slot:footer.prepend>
             <v-menu top offset-y :close-on-content-click="false">
               <template v-slot:activator="{ on, attrs }">
@@ -213,14 +215,14 @@
               </v-list>
             </v-menu>
           </template>
-          <!--表格底部右侧分页-->
+          <!--✅表格底部右侧分页-->
           <template v-slot:footer.page-text="pagination">
             <span>{{ pagination.pageStart }}-{{ pagination.pageStop }}</span>
             <span class="ml-1">共{{ pagination.itemsLength }}条</span>
           </template>
         </v-data-table>
       </v-card-text>
-      <!-- 为空提示 -->
+      <!-- ✅为空提示 -->
       <v-card-text v-else-if="tableSearchText" class="grow d-flex justify-center align-center grey--text" style="padding: 150px 0">
         {{ directoryRefreshStatus ? '' : '<$ constantUiMap.btn.fileNotFound $>' }}
       </v-card-text>
@@ -228,6 +230,7 @@
         {{ directoryRefreshStatus ? '' : '<$ constantUiMap.btn.folderEmpty $>' }}
       </v-card-text>
     </template>
+    <!--✅<<<<<<<<<<<<目录-->
   </v-card>
 </template>
 
@@ -242,44 +245,34 @@ Vue.component("directoryOrFileDetail", {
     currentPath: String,
     refreshing: Boolean,
     operationOption: Object,
-    tableSearchText: String
+    tableSearchText: String,
+    currentMarkdownPath: String,
   },
   data() {
     return {
       r_fileOrDirList: [],
       host: window.location.host,
-      folderAndFileList: [],
+
       showTableZebraLine: true,
       directoryRefreshStatus: false,
-      oldPath: '',
+      oldCurrentPath: '',
       currentDeleteItemPath: null,
-      loadingCurrentMarkdownPath: null,
-      viewingMarkdown: null,
+      currentMarkdownContent: null,
       headers: [
         {text: '文件名', align: 'start', value: 'name', width: '40%'},
         {text: '大小', value: 'size', width: '20%'},
         {text: '更新时间', value: 'mtime', width: '20%'},
         {text: '', value: 'action', sortable: false}
       ],
-      dayjs: dayjs
+      dayjs: dayjs,
+      // 目录文件、文件夹列表
+      directoryAndFileList: [],
+      directoryList: [],
+      fileList: [],
+      tableData: []
     };
   },
   computed: {
-    directoryList() {
-      const list = this.folderAndFileList.filter(
-          item => item.type === "dir" && item.basename.includes(this.tableSearchText)
-      );
-      list.sort((a, b) => (b.basename.includes('_recycle')) - (a.basename.includes('_recycle')))
-      return list;
-    },
-    fileList() {
-      return this.folderAndFileList.filter(
-          item => item.type === "file" && item.basename.includes(this.tableSearchText)
-      );
-    },
-    tableData() {
-      return this.directoryList.concat(this.fileList)
-    },
     currentPathIsDir() {
       return this.currentPath[this.currentPath.length - 1] === "/";
     },
@@ -307,37 +300,45 @@ Vue.component("directoryOrFileDetail", {
   },
 
   async created() {
-    this.oldPath = this.currentPath;
-    this.folderAndFileList = [];
+    this.oldCurrentPath = this.currentPath;
+    this.fixedTableHeight();
+    await this.doUiAction('cleanDirectoryData');
     await this.doUiAction('getDirectoryDataFromCache', this.currentPath);
-    this.directoryRefreshStatus = true;
+    await this.doUiAction('refreshDirectory');
   },
   watch: {
     // 监听刷新状态
     async directoryRefreshStatus(value, oValue) {
       this.$emit('refresh-status-change', value);
-      if (value && !oValue || this.oldPath !== this.currentPath) {
-        this.oldPath = this.currentPath;
-        await this.getDirectoryAndFileListByPath('watch:directoryRefreshStatus');
+      if (value && !oValue || this.oldCurrentPath !== this.currentPath) {
+        this.oldCurrentPath = this.currentPath;
+        await this.doUiAction('getCurrentPathData', 'watch:directoryRefreshStatus');
       }
       this.$emit("refresh-done");
     },
+    // 目录变动，更新目录信息
     async currentPath() {
-      this.folderAndFileList = [];
-      this.syncCacheData(this.currentPath);
-      this.directoryRefreshStatus = true;
+      await this.doUiAction('cleanDirectoryData');
+      await this.doUiAction('getDirectoryDataFromCache', this.currentPath);
+      await this.doUiAction('refreshDirectory');
     },
-    async refreshing(value) {
+    // 手动调用刷新按钮，触发
+    refreshing(value) {
       if (value) {
-        this.directoryRefreshStatus = true;
+        this.doUiAction('refreshDirectory');
       }
     },
+    // 当前文件类型，markdown文件，直接获取文件内容
     fileType(value) {
       if (value === 'markdown') {
-        this.getMarkdownDetail();
+        this.getMarkdownDetail(this.currentPath);
       } else {
-        this.viewingMarkdown = null;
+        this.currentMarkdownContent = null;
       }
+    },
+    // 表格过滤
+    tableSearchText() {
+      this.handleDirectoryData(this.directoryAndFileList)
     }
   },
   methods: {
@@ -346,70 +347,181 @@ Vue.component("directoryOrFileDetail", {
         case 'getDirectoryDataFromCache':
           this.syncCacheData(uiActionData);
           break;
+        case 'getCurrentPathData':
+          this.syncTotalCount();
+          await this.getCurrentPathDataFromBackend();
+          this.syncTotalCount();
+          break;
+        case 'refreshDirectory':
+          this.refreshDirectory(uiActionData);
+          break;
+        case 'cleanDirectoryData':
+          this.cleanDirectoryData(uiActionData);
+          break;
+        // item 操作
+        case 'openDirectoryOrFile':
+          this.openDirectoryOrFile(uiActionData);
+          break;
+        case 'editMarkdown':
+          this.editMarkdown(uiActionData);
+          break;
+        case 'cutItem':
+          this.cutItem(uiActionData);
+          break;
+        case 'copyItem':
+          this.copyItem(uiActionData);
+          break;
+        case 'startRenameItem':
+          this.startRenameItem(uiActionData);
+          break;
+        case 'doRename':
+          await this.checkNewFileName(uiActionData);
+          await this.doRename(uiActionData);
+          this.closeRenameDialog(uiActionData);
+          this.renameSuccess();
+          this.syncTotalCount();
+          await this.getCurrentPathDataFromBackend();
+          this.syncTotalCount();
+
+          this.renameFile(uiActionData);
+          break;
+        case 'startDeleteItem':
+          await this.startDeleteItem(uiActionData);
+          break;
       }
     },
-    checkIsImg(filename) {
-      return /\.(jpg|jpeg|png|GIF|JPG|PNG)$/.test(filename);
+    // ------ 目录数据 --------------
+    /**
+     * ✅刷新当前目录
+     */
+    refreshDirectory() {
+      this.directoryRefreshStatus = true;
     },
-    changePath(path) {
-      this.$emit("path-changed", path);
+    /**
+     * ✅清空目录数据
+     */
+    cleanDirectoryData() {
+      this.directoryAndFileList = [];
+      this.directoryList = [];
+      this.fileList = [];
+      this.tableData = [];
     },
-    createNewMarkdownFileObject(mdName) {
-      return {
-        "type": "file",
-        "path": this.currentPath,
-        "name": `${mdName}.md`,
-        "basename": `${mdName}.md`,
-        "sync": true,
-        "extension": "md",
-        "size": 16,
-      };
-    },
-    checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName) {
-      return directoryAndFileMapCache[getKey].some(item => {
-        if (item.name === mdName) {
-          item.sync = true;
-          return true;
-        }
-        return false
-      });
-    },
-    addMarkdownFileToCache(mdName) {
-      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
-      const getPath = this.currentPath.replace(/\//g, '_');
-      const getKey = 'directoryAndFile_' + getPath;
-      if (!directoryAndFileMapCache.hasOwnProperty(getKey)) {
-        directoryAndFileMapCache[getKey] = [];
-      }
-      const mdExist = this.checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName)
-      if (!mdExist) {
-        directoryAndFileMapCache[getKey].push(this.createNewMarkdownFileObject(mdName));
-      }
-      this.folderAndFileList = directoryAndFileMapCache[getKey];
-      localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
-    },
-    async getDirectoryAndFileListByPath(callThisAction) {
-      this.$emit("total-change", this.tableData.length);
+    /**
+     * 如果是目录，从后端获取目录的列表
+     * @returns {Promise<void>}
+     */
+    async getCurrentPathDataFromBackend() {
       if (this.currentPathIsDir) {
-        const path = this.currentPath;
-        this.r_fileOrDirList = await this.getDataRequest(path);
-        this.syncCacheData(path, this.r_fileOrDirList);
+        this.r_fileOrDirList =  (await window.jianghuAxios({
+          data: {
+            appData: {
+              pageId: 'cloud_drive',
+              actionId: 'list',
+              actionData: {
+                path: this.currentPath
+              },
+            }
+          }
+        })).data.appData.resultData.rows;
+        this.syncCacheData(this.currentPath, this.r_fileOrDirList);
       }
+    },
+    /**
+     * ✅修复table表格高度
+     */
+    fixedTableHeight() {
       requestAnimationFrame(resetTableMaxHeight)
-      this.directoryRefreshStatus = false;
+    },
+    /**
+     * ✅同步目录项目总数
+     */
+    syncTotalCount() {
       this.$emit("total-change", this.tableData.length);
     },
-    async getDataRequest(path) {
-      return (await window.jianghuAxios({
+    /**
+     * ✅获取后端数据结束
+     */
+    closeRefreshStatus() {
+      this.directoryRefreshStatus = false;
+    },
+    /**
+     * ✅获取markdown文件的内容
+     * @param path
+     * @returns {Promise<void>}
+     */
+    async getMarkdownDetail(path) {
+      this.currentMarkdownContent = await (await window.jianghuAxios({
         data: {
           appData: {
             pageId: 'cloud_drive',
-            actionId: 'list',
-            actionData: {path},
+            actionId: 'getMarkdownContent',
+            actionData: {
+              path
+            },
           }
         }
-      })).data.appData.resultData.rows;
+      })).data.appData.resultData.mdContent;
+      return this.currentMarkdownContent;
     },
+    /**
+     * ✅读取缓存数据
+     * @returns {any}
+     */
+    getDirectoryAndFileMapFromCache() {
+      let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
+      if(_.isEmpty(directoryAndFileMapCache)) return {};
+      try {
+        return JSON.parse(directoryAndFileMapCache);
+      } catch (err) {
+        return {};
+      }
+    },
+    /**
+     * ✅目录的数据分析处理
+     * @param list
+     */
+    handleDirectoryData(list) {
+      this.directoryAndFileList = _.cloneDeep(list);
+      this.directoryList = this.directoryAndFileList.filter(item => {
+        return item.type === "dir" && item.basename.includes(this.tableSearchText);
+      });
+      // 目录排序，回收站在第一位
+      this.directoryList.sort((a, b) => {
+        return (b.basename.includes('_recycle')) - (a.basename.includes('_recycle'));
+      })
+      this.fileList = this.directoryAndFileList.filter(item => {
+        return item.type === "file" && item.basename.includes(this.tableSearchText);
+      });
+      this.tableData = this.directoryList.concat(this.fileList);
+    },
+    /**
+     * ✅同步缓存数据
+     * @param currentPath 当前目录
+     * @param r_fileOrDirList 待保存的新数据
+     */
+    syncCacheData(currentPath, r_fileOrDirList) {
+      const currentPathLabel = currentPath.replace(/\//g, '_');
+      // 获取cache obj
+      const currentPathKey = 'directoryAndFile_' + currentPathLabel;
+      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
+      // 保存到cache
+      if (r_fileOrDirList) {
+        directoryAndFileMapCache[currentPathKey] = _.cloneDeep(r_fileOrDirList);
+        localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
+      }
+      // 从cache中取值
+      if ((Object.keys(directoryAndFileMapCache) || []).indexOf(currentPathKey) > -1) {
+        this.handleDirectoryData(directoryAndFileMapCache[currentPathKey])
+      } else {
+        this.cleanDirectoryData();
+      }
+    },
+    // ------ item 操作 ------------
+    /**
+     * 开始删除
+     * @param item
+     * @returns {Promise<void>}
+     */
     async startDeleteItem(item) {
       let confirmed = await window.confirmDialog({
             title:
@@ -424,6 +536,11 @@ Vue.component("directoryOrFileDetail", {
         this.$emit("loading", false);
       }
     },
+    /**
+     * ✅删除操作resource
+     * @param item
+     * @returns {Promise<void>}
+     */
     async doDeleteRequest(item) {
       this.currentDeleteItemPath = item.path;
       await window.jianghuAxios({
@@ -437,65 +554,54 @@ Vue.component("directoryOrFileDetail", {
       })
       this.currentDeleteItemPath = null;
     },
-    async getMarkdownDetailRequest(path) {
-      return (await window.jianghuAxios({
-        data: {
-          appData: {
-            pageId: 'cloud_drive',
-            actionId: 'getMarkdownContent',
-            actionData: {
-              path,
-            },
-          }
-        }
-      })).data.appData.resultData.mdContent;
+    /**
+     * 文档编辑
+     * @param item
+     */
+    editMarkdown(item) {
+      this.$emit("edit-markdown-item", {path: item.path});
     },
-    async getMarkdownDetail() {
-      this.viewingMarkdown = await this.getMarkdownDetailRequest(this.currentPath);
-    },
-    async editMarkdownItem(item) {
-      this.loadingCurrentMarkdownPath = item.path;
-      const result = await this.getMarkdownDetailRequest(item.path);
-      this.loadingCurrentMarkdownPath = null;
-      this.$emit("edit-markdown-item", {content: result, path: item.path});
-    },
-    async cutItem(item) {
+    /**
+     * 剪切文件
+     * @param item
+     */
+    cutItem(item) {
       this.$emit("cut-item", item.path);
     },
-
-    async copyItem(item) {
+    /**
+     * 复制文件
+     * @param item
+     */
+    copyItem(item) {
       this.$emit("copy-item", item.path);
     },
-    parseFileSize(bytes, decimals = 2) {
-      if (bytes === 0) return '0 bytes';
-
-      const k = 1024;
-      const dm = decimals < 0 ? 0 : decimals;
-      const sizes = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    /**
+     * 打开重命名文件mini弹窗
+     * @param item
+     */
+    startRenameItem(item) {
+      item.newFilename = item.basename;
     },
-    openFile(path) {
-      window.open(path)
-    },
-    async renameFile(item) {
-      const {path, newFilename} = item;
+    /**
+     * 检查重命名文件名
+     * @param item
+     * @returns {Promise<void>}
+     */
+    checkNewFileName(item) {
+      const {newFilename} = item;
       if (!newFilename) {
-        window.vtoast.fail('<$ constantUiMap.btn.enterFileName $>');
-        return;
+        window.vtoast.fail('请输入新的文件名称');
+        throw new Error("[checkNewFileName] 否");;
       }
-      window.vtoast.loading("<$ constantUiMap.btn.fileRename $>");
-      await this.syncRenameRequest(path, newFilename);
-      item.newFolderPopper = false;
-      await this.getDirectoryAndFileListByPath('renameFile');
-      const currentPathIsDir = item.path[item.path.length - 1] === "/";
-      const pathDir = currentPathIsDir ? item.path : item.path.substring(0, item.path.lastIndexOf('/') + 1);
-      this.$emit("read-folder-by-path", pathDir);
-      window.vtoast.success('<$ constantUiMap.btn.renamedSuccess $>');
     },
-    async syncRenameRequest(path, newFilename) {
+    /**
+     * 同步重命名到服务端
+     * @param item
+     * @returns {Promise<void>}
+     */
+    async doRename(item) {
+      const {path, newFilename} = item;
+      window.vtoast.loading("<$ constantUiMap.btn.fileRename $>");
       await window.jianghuAxios({
         data: {
           appData: {
@@ -509,39 +615,56 @@ Vue.component("directoryOrFileDetail", {
         }
       })
     },
-    // 读取缓存数据
-    getDirectoryAndFileMapFromCache() {
-      let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
-      try {
-        directoryAndFileMapCache = JSON.parse(directoryAndFileMapCache);
-      } catch (err) {
-        directoryAndFileMapCache = {};
-      }
-      if (!directoryAndFileMapCache) {
-        directoryAndFileMapCache = {};
-      }
-      return directoryAndFileMapCache;
+    /**
+     * 关闭重命名mini弹窗
+     * @param item
+     */
+    closeRenameDialog(item) {
+      item.newFolderPopper = false;
     },
-    // 同步缓存数据
-    syncCacheData(oldPath, r_fileOrDirList) {
-      const savePath = oldPath.replace(/\//g, '_');
-      const getPath = this.currentPath.replace(/\//g, '_');
-      // 获取cache obj
-      const saveKey = 'directoryAndFile_' + savePath;
-      const getKey = 'directoryAndFile_' + getPath;
-      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
-      // 保存到cache
-      if (r_fileOrDirList) {
-        directoryAndFileMapCache[saveKey] = _.cloneDeep(r_fileOrDirList);
-        localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
-      }
-      // 从cache中取值
-      if ((Object.keys(directoryAndFileMapCache) || []).indexOf(getKey) > -1) {
-        this.folderAndFileList = directoryAndFileMapCache[getKey];
-      } else {
-        this.folderAndFileList = [];
-      }
-    }
+    /**
+     * 重命名成功
+     */
+    renameSuccess() {
+      window.vtoast.success('<$ constantUiMap.btn.renamedSuccess $>');
+    },
+    // ------ 公共方法 --------------
+    /**
+     * 检查当前文件是否图片
+     * @param filename
+     * @returns {boolean}
+     */
+    checkIsImg(filename) {
+      return /\.(jpg|jpeg|png|GIF|JPG|PNG)$/.test(filename);
+    },
+    /**
+     * 打开目录/文件
+     * @param path
+     */
+    openDirectoryOrFile(path) {
+      this.$emit("path-changed", path);
+    },
+    /**
+     * 新窗口打开文件
+     * @param path
+     */
+    openFile(path) {
+      window.open(path)
+    },
+    /**
+     * 文件大小计算
+     * @param bytes
+     * @param decimals
+     * @returns {string}
+     */
+    parseFileSize(bytes, decimals = 2) {
+      if (bytes === 0) return '0 bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    },
   },
 });
 </script>

@@ -94,6 +94,7 @@
                   :role-id="roleId"
                   :refreshing="refreshing"
                   :tableSearchText="tableSearchText"
+                  :currentMarkdownPath="currentMarkdownPath"
 
                   v-on:path-changed="doUiAction('changeCurrentPath', $event)"
                   v-on:copy-item="doUiAction('copyItem', $event)"
@@ -229,6 +230,7 @@ new Vue({
     currentPath: "/cloudDemo/",
     isMarkdownEditDialogShow: false,
     currentDirectory: null,
+    currentMarkdownPath: null,
     uploadingFileDialog: false, // or an Array of files
     uploadingFileList: [], // or an Array of files
     // 目录刷新状态
@@ -258,16 +260,16 @@ new Vue({
     // 当前路径名称列表
     currentPathList() {
       let path = "/";
-      let isFolder = this.currentPath[this.currentPath.length - 1] === "/";
-      let pathItem = this.currentPath.split("/").filter(item => !_.isEmpty(item));
-      pathItem = pathItem.map((item, index) => {
-        path += item + (index < pathItem.length - 1 || isFolder ? "/" : "");
+      let pathItemList = this.currentPath.split("/").filter(item => !_.isEmpty(item));
+      pathItemList = pathItemList.map((item, index) => {
+        const itemIsLastOne = index === pathItemList.length - 1;
+        path += item + (!itemIsLastOne || this.currentPathIsDir ? "/" : "");
         return {
           name: item,
           path
         };
       });
-      return pathItem;
+      return pathItemList;
     },
   },
   async created() {
@@ -348,6 +350,18 @@ new Vue({
       this.refreshing = false;
     },
     /**
+     * ✅读取缓存数据
+     */
+    getDirectoryAndFileMapFromCache() {
+      let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
+      if(_.isEmpty(directoryAndFileMapCache)) return {};
+      try {
+        return JSON.parse(directoryAndFileMapCache);
+      } catch (err) {
+        return {};
+      }
+    },
+    /**
      * ✅打开markdown编辑器弹窗
      * @param item
      */
@@ -355,12 +369,57 @@ new Vue({
       this.isMarkdownEditDialogShow = true;
     },
     /**
+     * ✅检查文件名
+     * @param directoryAndFileMapCache
+     * @param getKey
+     * @param mdName
+     * @returns {*}
+     */
+    checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName) {
+      return directoryAndFileMapCache[getKey].some(item => {
+        if (item.name === mdName) {
+          item.sync = true;
+          return true;
+        }
+        return false
+      });
+    },
+    /**
+     * 新建文件对象
+     * @param mdName
+     * @returns {{path, extension: string, basename: string, size: number, name: string, type: string, sync: boolean}}
+     */
+    createNewMarkdownFileObject(mdName) {
+      return {
+        "type": "file",
+        "path": this.currentPath,
+        "name": `${mdName}.md`,
+        "basename": `${mdName}.md`,
+        "sync": true,
+        "extension": "md",
+        "size": 16,
+      };
+    },
+    /**
      * ✅保存markdown文件到缓存
      * @param content
      * @param markdownName
      */
-    createMarkdownFileToCache({content, markdownName}) {
-      this.$refs.directoryOrFileDetail.addMarkdownFileToCache(markdownName);
+    createMarkdownFileToCache({content, mdName}) {
+      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
+      const getPath = this.currentPath.replace(/\//g, '_');
+      const getKey = 'directoryAndFile_' + getPath;
+      if (!directoryAndFileMapCache.hasOwnProperty(getKey)) {
+        directoryAndFileMapCache[getKey] = [];
+      }
+      const mdExist = this.checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName)
+      if (!mdExist) {
+        directoryAndFileMapCache[getKey].push(this.createNewMarkdownFileObject(mdName));
+      }
+      // 重新根据变动整理下目录列表
+      this.$refs.directoryOrFileDetail.handleDirectoryData(directoryAndFileMapCache[getKey]);
+      // 保存缓存信息
+      localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
     },
     /**
      * ✅保存markdown文档
@@ -368,7 +427,7 @@ new Vue({
      * @param markdownName markdown文件名
      * @returns {Promise<void>}
      */
-    async doSaveMarkdown({content, markdownName}) {
+    async doSaveMarkdown({content, mdName}) {
       await window.jianghuAxios({
         data: {
           appData: {
@@ -376,7 +435,7 @@ new Vue({
             actionId: 'saveMarkdown',
             actionData: {
               content,
-              name: markdownName,
+              name: mdName,
               path: this.currentPath
             },
           }
@@ -414,14 +473,15 @@ new Vue({
      */
     checkAndFilterImageExceedMaxSize(files) {
       if (this.imageMaxUploadFileSize) {
-        const checkImageSizeError = this.materialType === 'image' && files.find(
-            file => file.size > this.imageMaxUploadFileSize
-        )
+        const isImage = this.materialType === 'image';
+        let exceedMaxSizeImg = false;
+        if(isImage) {
+          exceedMaxSizeImg = files.some(file => file.size > this.imageMaxUploadFileSize);
+        }
+        const checkImageSizeError = isImage && exceedMaxSizeImg;
         if (checkImageSizeError) {
           window.vtoast.fail('部分图片文件大于 700K, 请重新压缩过后再上传素材');
-          files = files.filter(
-              file => file.size <= this.imageMaxUploadFileSize
-          );
+          files = files.filter(file => file.size <= this.imageMaxUploadFileSize);
         }
       }
     },
@@ -486,7 +546,7 @@ new Vue({
      * @param filename
      * @returns {{path, extension: string, basename, size: number, name: string, type: string, sync: boolean}}
      */
-    createNewFileData(toDir, filename) {
+    createNewFileObject(toDir, filename) {
       return {
         "type": "file",
         "path": toDir,
@@ -512,16 +572,17 @@ new Vue({
         // 获取cache obj
         const fromKey = 'directoryAndFile_' + fromPath;
         const toKey = 'directoryAndFile_' + toPath;
-        let directoryAndFileMapFromCache = this.$refs.directoryOrFileDetail.getDirectoryAndFileMapFromCache();
-        if((Object.keys(directoryAndFileMapFromCache) || []).indexOf(toKey) > -1) {
-          directoryAndFileMapFromCache[toKey].push(this.createNewFileData(toDir, filename));
+        let directoryAndFileMapFromCache = this.getDirectoryAndFileMapFromCache();
+        const cacheKeyList = (Object.keys(directoryAndFileMapFromCache) || []);
+        if(cacheKeyList.includes(toKey)) {
+          directoryAndFileMapFromCache[toKey].push(this.createNewFileObject(toDir, filename));
         }
         if(pasteMode === 'moveFile') {
-          if((Object.keys(directoryAndFileMapFromCache) || []).indexOf(fromKey) > -1) {
+          if(cacheKeyList.includes(fromKey)) {
             directoryAndFileMapFromCache[fromKey] = this.filterMoveSuccessFile(directoryAndFileMapFromCache, fromKey, filename);
           }
         }
-        this.folderAndFileList = directoryAndFileMapFromCache[toKey];
+        this.directoryAndFileList = directoryAndFileMapFromCache[toKey];
         localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapFromCache));
       }
     },
@@ -567,7 +628,10 @@ new Vue({
      * @param path markdown文件路径
      * @returns {Promise<void>}
      */
-    async prepareUpdateMarkdown({content, path}) {
+    async prepareUpdateMarkdown({path}) {
+      this.currentMarkdownPath = path;
+      const content = await this.$refs.directoryOrFileDetail.getMarkdownDetail(path);
+      this.currentMarkdownPath = null;
       this.willEditMarkdownItem = {
         content: content,
         name: path.substring(path.lastIndexOf('/') + 1)

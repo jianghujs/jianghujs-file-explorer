@@ -1,26 +1,26 @@
 <template id="fileBrowser-toolbar">
   <div>
     <input v-show="false" style="opacity: 0; position: absolute; top: -200px" ref="inputUpload" type="file" multiple
-           @change="addFiles"/>
+           @change="addNewFile"/>
     <div>
       <template>
-        <!-- 上传文件 -->
+        <!-- ✅上传文件 -->
         <v-btn small v-if="currentPath" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="currentPath === '/'">
           <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
           <$ constantUiMap.btn.upload $>
         </v-btn>
-        <!-- 创建文档文件 -->
+        <!-- ✅创建文档文件 -->
         <v-btn small v-if="currentPath" depressed @click="$emit('create-markdown')" title="Upload Files" :disabled="currentPath === '/'">
           <v-icon class="mr-1" small>mdi-text-box-plus</v-icon>
           新建文档
         </v-btn>
-        <!-- 粘贴文件夹 -->
+        <!-- ✅粘贴文件夹 -->
         <v-btn small v-if="currentPath && currentCopyPath" depressed @click="pasteItem()" class="ml-1"
                title="<$ constantUiMap.btn.paste $>" :disabled="currentPath === '/'">
           <v-icon class="mr-1" small>mdi-file-replace</v-icon>
           <$ constantUiMap.btn.paste $>
         </v-btn>
-        <!-- 创建文件夹 -->
+        <!-- ✅创建文件夹 -->
         <v-menu v-if="currentPath" v-model="newFolderPopper" :close-on-content-click="false" :nudge-width="200"
                 offset-y>
           <template v-slot:activator="{ on }">
@@ -31,16 +31,17 @@
               </v-btn>
             </span>
           </template>
+          <!--✅创建文件夹弹窗-->
           <v-card>
             <v-card-text class="pb-0">
               <v-text-field color="success" label="<$ constantUiMap.btn.fileName $>" v-model="newFolderName" hide-details filled single-line dense></v-text-field>
             </v-card-text>
             <v-card-actions class="px-4">
               <v-spacer></v-spacer>
-              <v-btn @click="newFolderPopper = false" :disabled="mkdirIng" depressed small><$ constantUiMap.btn.cancel $></v-btn>
-              <v-btn color="success" :disabled="!newFolderName || mkdirIng" depressed @click="mkdir" small>
-                <v-progress-circular v-if="mkdirIng" indeterminate :size="18" color="primary"></v-progress-circular>
-                {{mkdirIng ? '正在创建' : '<$ constantUiMap.btn.create $>'}}
+              <v-btn @click="newFolderPopper = false" :disabled="isCreatingDirectory" depressed small><$ constantUiMap.btn.cancel $></v-btn>
+              <v-btn color="success" :disabled="!newFolderName || isCreatingDirectory" depressed @click="createDirectory" small>
+                <v-progress-circular v-if="isCreatingDirectory" indeterminate :size="18" color="primary"></v-progress-circular>
+                {{isCreatingDirectory ? '正在创建' : '<$ constantUiMap.btn.create $>'}}
               </v-btn>
             </v-card-actions>
           </v-card>
@@ -63,25 +64,38 @@ Vue.component("toolbar", {
     return {
       newFolderPopper: false,
       newFolderName: "",
-      mkdirIng: false
+      isCreatingDirectory: false
     };
   },
   computed: {
   },
   methods: {
-    async addFiles(event) {
+    /**
+     * 选择文件回调
+     * @param event
+     * @returns {Promise<void>}
+     */
+    async addNewFile(event) {
       this.$emit("add-files", event.target.files);
       this.$refs.inputUpload.value = "";
     },
-    async mkdir() {
-      this.mkdirIng = true;
-      await this.syncMkdirRequest();
+    /**
+     * 开始创建文件夹
+     * @returns {Promise<void>}
+     */
+    async createDirectory() {
+      this.isCreatingDirectory = true;
+      await this.doCreateDirectory();
       this.$emit("folder-created", this.newFolderName);
       this.newFolderName = "";
-      this.mkdirIng = false;
+      this.isCreatingDirectory = false;
       this.newFolderPopper = false;
     },
-    async syncMkdirRequest() {
+    /**
+     * 创建文件夹resource
+     * @returns {Promise<void>}
+     */
+    async doCreateDirectory() {
       await window.jianghuAxios({
         data: {
           appData: {
@@ -92,6 +106,9 @@ Vue.component("toolbar", {
         }
       })
     },
+    /**
+     * 粘贴文件
+     */
     pasteItem() {
       this.$emit("paste-item", this.currentPath);
     },

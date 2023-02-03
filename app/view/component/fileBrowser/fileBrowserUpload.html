@@ -1,7 +1,7 @@
 <template id="fileBrowser-upload">
   <v-overlay style="z-index: 10;">
     <v-card flat light class="mx-auto" :loading="loading" style="width: 600px;">
-      <!-- header -->
+      <!-- ✅header -->
       <v-toolbar flat dense dark style="background-color: #fff;">
         <div class="black--text ml-2" style="font-size: 16px;"><$ constantUiMap.btn.upload $><$ constantUiMap.btn.file $>
         </div>
@@ -14,7 +14,7 @@
       </v-toolbar>
       <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
 
-      <!-- 按钮区 -->
+      <!-- ✅按钮区 -->
       <v-card-text>
         <input v-show="false" ref="inputUpload" type="file" multiple @change="addNewFile"/>
         <v-btn color="success" depressed @click="$refs.inputUpload.click()"
@@ -34,7 +34,7 @@
         </v-btn>
       </v-card-text>
 
-      <!-- 文件列表 -->
+      <!-- ✅文件列表 -->
       <v-card-text v-if="listItems.length" class="py-0 files-list-wrapper">
         <v-list v-if="listItems.length">
           <v-list-item v-for="(file, index) in listItems" :key="index"
@@ -53,9 +53,7 @@
               <v-list-item-subtitle>{{ formatBytes(file.size) }} - {{ file.type }}</v-list-item-subtitle>
             </v-list-item-content>
             <v-list-item-action class="d-flex">
-              <v-btn icon @click="removeFile(index)"
-                     small
-              >
+              <v-btn icon @click="removeFile(index)"small>
                 <v-icon samll style="font-size: 16px;">mdi-close</v-icon>
               </v-btn>
             </v-list-item-action>
@@ -63,12 +61,12 @@
         </v-list>
       </v-card-text>
 
-      <!-- 空提示 -->
+      <!-- ✅空提示 -->
       <v-card-text v-else class="py-6 text-center">
         暂无文件~
       </v-card-text>
 
-      <!-- footer -->
+      <!-- ✅footer -->
       <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
       <v-card-text class="py-3 d-flex justify-space-between" style="color:#A1A5B7;">
         <div>

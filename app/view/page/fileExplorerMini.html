@@ -621,7 +621,7 @@ new Vue({
       width: 400,
     },
     host: window.location.host,
-    folderAndFileList: [],
+    directoryAndFileList: [],
     page: 1,
     pageSize: 20,
     dataLoading: false,
@@ -687,7 +687,7 @@ new Vue({
       return this.storagesArray.find(item => item.code == this.currentDirectory);
     },
     dirs() {
-      const list = this.folderAndFileList.filter(
+      const list = this.directoryAndFileList.filter(
           item => item.type === "dir" && item.basename.includes(this.filter)
       );
       if (this.roleId !== 'teacher') {
@@ -696,7 +696,7 @@ new Vue({
       return list;
     },
     files() {
-      return this.folderAndFileList.filter(
+      return this.directoryAndFileList.filter(
           item => item.type === "file" && item.basename.includes(this.filter)
       );
     },
@@ -743,7 +743,7 @@ new Vue({
       }
     },
     async path() {
-      this.folderAndFileList = [];
+      this.directoryAndFileList = [];
       this.syncCacheData(this.path);
       this.dataLoading = true;
     },
@@ -774,7 +774,7 @@ new Vue({
     await this.doUiAction('refreshTableData');
 
     this.oldPath = this.path;
-    this.folderAndFileList = [];
+    this.directoryAndFileList = [];
     this.syncCacheData(this.path);
     this.dataLoading = true;
   },
@@ -1001,7 +1001,7 @@ new Vue({
           "extension": "md",
           "size": 16,
         });
-      this.folderAndFileList = directoryAndFileMapCache[getKey];
+      this.directoryAndFileList = directoryAndFileMapCache[getKey];
       localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
     },
     async getFolderAndFileListByPath(prevMethod) {
@@ -1109,7 +1109,7 @@ new Vue({
             });
           }
         }
-        this.folderAndFileList = directoryAndFileMapCache[toKey];
+        this.directoryAndFileList = directoryAndFileMapCache[toKey];
         localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
       }
     },
@@ -1159,36 +1159,38 @@ new Vue({
         }
       })
     },
+    /**
+     * ✅读取缓存数据
+     */
     getDirectoryAndFileMapFromCache() {
       let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
+      if(_.isEmpty(directoryAndFileMapCache)) return {};
       try {
-        directoryAndFileMapCache = JSON.parse(directoryAndFileMapCache);
+        return JSON.parse(directoryAndFileMapCache);
       } catch (err) {
-        directoryAndFileMapCache = {};
+        return {};
       }
-      if (!directoryAndFileMapCache) {
-        directoryAndFileMapCache = {};
-      }
-      return directoryAndFileMapCache;
     },
-    // 从缓存读取、更新
-    syncCacheData(oldPath, fileOrDirList) {
-      const savePath = oldPath.replace(/\//g, '_');
-      const getPath = this.path.replace(/\//g, '_');
+    /**
+     * ✅同步缓存数据
+     * @param currentPath 当前目录
+     * @param r_fileOrDirList 待保存的新数据
+     */
+    syncCacheData(currentPath, r_fileOrDirList) {
+      const currentPathLabel = currentPath.replace(/\//g, '_');
       // 获取cache obj
-      const saveKey = 'directoryAndFile_' + savePath;
-      const getKey = 'directoryAndFile_' + getPath;
+      const currentPathKey = 'directoryAndFile_' + currentPathLabel;
       let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
       // 保存到cache
-      if (fileOrDirList) {
-        directoryAndFileMapCache[saveKey] = fileOrDirList;
+      if (r_fileOrDirList) {
+        directoryAndFileMapCache[currentPathKey] = _.cloneDeep(r_fileOrDirList);
         localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
       }
       // 从cache中取值
-      if ((Object.keys(directoryAndFileMapCache) || []).indexOf(getKey) > -1) {
-        this.folderAndFileList = directoryAndFileMapCache[getKey];
+      if ((Object.keys(directoryAndFileMapCache) || []).indexOf(currentPathKey) > -1) {
+        this.handleDirectoryData(directoryAndFileMapCache[currentPathKey])
       } else {
-        this.folderAndFileList = [];
+        this.cleanDirectoryData();
       }
     },
     async filesMap(files) {
