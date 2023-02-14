@@ -12,7 +12,7 @@
       <div>
         <div class="appTitle pt-3" style="font-size: 18px; font-weight: 700">{{ breadcrumbs[1].fullText }}
           <!-- 帮助页按钮 -->
-          <v-icon @click="isHelpPageDrawerShow = true" small>mdi-help-circle-outline</v-icon>
+          <v-icon @click="isHelpPageDrawerShown = true" small>mdi-help-circle-outline</v-icon>
         </div>
         <v-breadcrumbs class="pb-3 pt-0 pl-0" :items="breadcrumbs" divider="-"></v-breadcrumbs>
       </div>
@@ -379,7 +379,7 @@
               </v-row>
               <!-- fileBrowserUpload start -->
               <v-overlay
-                  v-if="uploadingFiles !== false"
+                  v-if="uploadFileList !== false"
                   style="z-index: 10;">
                 <v-card flat light class="mx-auto" :loading="loading" style="width: 600px;">
                   <!-- header -->
@@ -388,7 +388,7 @@
                     </div>
                     <v-spacer></v-spacer>
                     <v-toolbar-items>
-                      <v-btn text @click="uploadingFiles = false">
+                      <v-btn text @click="uploadFileList = false">
                         <v-icon class="black--text" style="font-size: 18px;">mdi-close</v-icon>
                       </v-btn>
                     </v-toolbar-items>
@@ -491,13 +491,13 @@
     </div>
 
     <!-- 帮助页抽屉 >>>>>>>>>>>>> -->
-    <v-navigation-drawer v-model="isHelpPageDrawerShow" fixed temporary right width="80%" hide-overlay
+    <v-navigation-drawer v-model="isHelpPageDrawerShown" fixed temporary right width="80%" hide-overlay
                          class="elevation-24">
       <iframe style="border: 0" :src="`/${appInfo.appId}/pageDoc#3.doUiAction.md`" width="100%"
               height="100%"></iframe>
 
       <v-btn elevation="0" color="success" fab absolute top left small tile class="drawer-close-float-btn"
-             @click="isHelpPageDrawerShow = false">
+             @click="isHelpPageDrawerShown = false">
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </v-navigation-drawer>
@@ -570,7 +570,7 @@ new Vue({
   vuetify: new Vuetify(),
   data: () => ({
     breadcrumbs: window.breadcrumbs,
-    isHelpPageDrawerShow: false,
+    isHelpPageDrawerShown: false,
 
     showTableZebraLine: true,
     // 表格相关数据
@@ -601,7 +601,7 @@ new Vue({
     path: "/cloudDemo/",
     isMarkdownEditDialogShow: false,
     currentDirectory: null,
-    uploadingFiles: false, // or an Array of files
+    uploadFileList: false, // or an Array of files
     // 用于让子组件做监听，有变化时对当前目录做刷新
     refreshing: false,
     currentCopyPath: '',
@@ -744,7 +744,7 @@ new Vue({
     },
     async path() {
       this.directoryAndFileList = [];
-      this.syncCacheData(this.path);
+      this.syncCacheData({path: this.path});
       this.dataLoading = true;
     },
     async refreshing(value) {
@@ -759,12 +759,12 @@ new Vue({
         this.viewingMarkdown = null;
       }
     },
-    uploadingFiles: {
+    uploadFileList: {
       deep: true,
       immediate: true,
       async handler() {
         this.loading = true;
-        this.listItems = await this.filesMap(this.uploadingFiles);
+        this.listItems = await this.filesMap(this.uploadFileList);
         this.loading = false;
       }
     }
@@ -775,7 +775,7 @@ new Vue({
 
     this.oldPath = this.path;
     this.directoryAndFileList = [];
-    this.syncCacheData(this.path);
+    this.syncCacheData({path: this.path});
     this.dataLoading = true;
   },
   mounted() {
@@ -844,26 +844,26 @@ new Vue({
         }
       }
     },
-    addUploadingFiles(files) {
+    adduploadFileList(files) {
       files = Array.from(files);
 
       this.checkImageMaxUploadFileSize(files);
 
-      if (this.uploadingFiles === false) {
-        this.uploadingFiles = [];
+      if (this.uploadFileList === false) {
+        this.uploadFileList = [];
       }
 
-      if (this.maxUploadFilesCount && this.uploadingFiles.length + files.length > this.maxUploadFilesCount) {
-        files = files.slice(0, this.maxUploadFilesCount - this.uploadingFiles.length);
+      if (this.maxUploadFilesCount && this.uploadFileList.length + files.length > this.maxUploadFilesCount) {
+        files = files.slice(0, this.maxUploadFilesCount - this.uploadFileList.length);
       }
 
-      this.uploadingFiles.push(...files);
+      this.uploadFileList.push(...files);
     },
-    removeUploadingFile(index) {
-      this.uploadingFiles.splice(index, 1);
+    removeUploadFileItem(index) {
+      this.uploadFileList.splice(index, 1);
     },
     uploaded() {
-      this.uploadingFiles = false;
+      this.uploadFileList = false;
       this.refreshing = true;
     },
     pathChanged(path) {
@@ -1010,7 +1010,7 @@ new Vue({
       if (this.isDir) {
         const path = this.path;
         const fileOrDirList = await this.getDataRequest(path);
-        this.syncCacheData(path, fileOrDirList);
+        this.syncCacheData({path: path, dataList: fileOrDirList});
       } else {
         // TODO: getFolderAndFileListByPath file
       }
@@ -1164,31 +1164,27 @@ new Vue({
      */
     getDirectoryAndFileMapFromCache() {
       let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
-      if(_.isEmpty(directoryAndFileMapCache)) return {};
-      try {
-        return JSON.parse(directoryAndFileMapCache);
-      } catch (err) {
-        return {};
-      }
+      if (!directoryAndFileMapCache) return '{}';
+      return JSON.parse(directoryAndFileMapCache);
     },
     /**
      * ✅同步缓存数据
      * @param currentPath 当前目录
      * @param r_fileOrDirList 待保存的新数据
      */
-    syncCacheData(currentPath, r_fileOrDirList) {
-      const currentPathLabel = currentPath.replace(/\//g, '_');
+    syncCacheData({path, dataList}) {
+      const currentPathLabel = path.replace(/\//g, '_');
       // 获取cache obj
       const currentPathKey = 'directoryAndFile_' + currentPathLabel;
       let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
       // 保存到cache
-      if (r_fileOrDirList) {
-        directoryAndFileMapCache[currentPathKey] = _.cloneDeep(r_fileOrDirList);
+      if (dataList) {
+        directoryAndFileMapCache[currentPathKey] = _.cloneDeep(dataList);
         localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
       }
       // 从cache中取值
       if ((Object.keys(directoryAndFileMapCache) || []).indexOf(currentPathKey) > -1) {
-        this.handleDirectoryData(directoryAndFileMapCache[currentPathKey])
+        this.doUiAction('handleDirectoryData', directoryAndFileMapCache[currentPathKey])
       } else {
         this.cleanDirectoryData();
       }
@@ -1219,24 +1215,24 @@ new Vue({
 
     async add(event) {
       let files = Array.from(event.target.files);
-      this.addUploadingFiles(files)
+      this.adduploadFileList(files)
       this.$refs.inputUpload.value = "";
     },
 
     remove(index) {
-      this.removeUploadingFile(index)
+      this.removeUploadFileItem(index)
       this.listItems.splice(index, 1);
     },
 
     clear() {
-      this.uploadingFiles = []
+      this.uploadFileList = []
       this.listItems = [];
     },
 
     async upload() {
       this.uploading = true;
       const that = this;
-      for (let file of this.uploadingFiles) {
+      for (let file of this.uploadFileList) {
         window.vtoast.loading(`${file.name} <$ constantUiMap.btn.uploadProgress $>: 0.00%`);
         await window.jianghuAxios.httpUploadByStream({
           file,
@@ -1268,7 +1264,7 @@ new Vue({
       this.changePath(path);
     },
     async addFiles(event) {
-      this.addUploadingFiles(event.target.files)
+      this.adduploadFileList(event.target.files)
       this.$refs.inputUpload1.value = "";
     },
     async mkdir() {

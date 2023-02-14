@@ -18,79 +18,99 @@
       <!-- <<<<<<<<<<<<< 头部内容 -->
       <div class="jh-page-body-container px-8">
         <!-- 页面内容 >>>>>>>>>>>>> -->
-        <v-card class="rounded-lg pa-4 pb-0">
+        <v-card class="rounded-lg pa-4">
           <v-row class="ma-0 pa-0 mb-2">
-            <!--✅上传文件 -->
-            <file-browser-upload
-              :current-path="currentPath"
-              :file-icon-list="fileIconList"
-              @refresh-directory="doUiAction('getDirectoryData')"
-            ></file-browser-upload>
-            <!--✅新建markdown -->
-            <markdown-editor
-              :current-path="currentPath"
-              :current-markdown-item="currentMarkdownItem"
-              @refresh-directory="doUiAction('getDirectoryData')">
-            </markdown-editor>
-            <!-- ✅粘贴 -->
-            <v-btn small v-if="currentPath && currentCopyPath" depressed @click="pasteItem()" class="ml-1"
-                   title="<$ constantUiMap.btn.paste $>" :disabled="currentPath === '/'">
-              <v-icon class="mr-1" small>mdi-file-replace</v-icon>
-              <$ constantUiMap.btn.paste $>
-            </v-btn>
-            <!-- ✅新建目录 -->
-            <create-new-directory
-              :current-path="currentPath"
-              @refresh-directory="doUiAction('getDirectoryData')">
-            </create-new-directory>
+            <!--✅目录de工具栏 >>>>>>>> -->
+            <toolbar
+              ref="toolbar"
+              :currentPath="currentPath"
+              :current-copy-path="currentCopyPath"
+              v-on:paste-item="doUiAction('pasteItem')"
+              v-on:add-files="doUiAction('addNewFileList', $event)"
+              v-on:folder-created="doUiAction('refreshDirectory')"
+              v-on:create-markdown="doUiAction('startCreateMarkdown')"
+            >
+            </toolbar>
             <v-spacer></v-spacer>
-            <!--✅搜索 -->
+            <!--✅<<<<<<<< 目录de工具栏 -->
+            <!--✅搜索 >>>>>>>> -->
             <v-col cols="12" xs="8" sm="4" md="3" xl="2" class="pa-0">
               <v-text-field color="success" v-model="tableSearchText" prefix="搜索：" class="jh-v-input" dense filled single-line></v-text-field>
             </v-col>
+            <!--✅<<<<<<<<<< 搜索 -->
           </v-row>
           <v-row class="ma-0 mb-2 align-center">
-            <!-- ✅路径面包屑栏  -->
+            <!-- ✅路径面包屑栏 >>>>>>>> -->
+            <!--上一级按钮-->
+            <v-btn color="#E8F5E9" @click="goBack" small class="success--text elevation-0">
+              <v-icon class="mr-1" small>mdi-arrow-left</v-icon>
+              上一级
+            </v-btn>
+            <!--文件详情路径面包屑-->
             <breadcrumbs
               :current-path="currentPath"
               @change-path="doUiAction('changeCurrentPath', $event)">
             </breadcrumbs>
+            <!-- ✅路径面包屑栏 >>>>>>>> -->
             <v-spacer></v-spacer>
-            <!--✅目录下文件/文件夹总数 -->
-            <v-chip color="green" text-color="white" small>
-              {{ totalCount }} items
-            </v-chip>
-            <!-- ✅数据刷新状态 -->
-            <v-btn icon @click="doUiAction('getDirectoryData')" small>
-              <v-progress-circular indeterminate v-if="isRefreshDirectory" :size="20" color="primary"></v-progress-circular>
-              <v-icon v-else>mdi-refresh</v-icon>
-            </v-btn>
+            <template>
+              <v-chip color="green" text-color="white" small>
+                {{ totalCount }} items
+              </v-chip>
+              <v-btn icon @click="doUiAction('refreshDirectory')" small>
+                <v-progress-circular indeterminate v-if="refreshing" :size="20" color="primary"></v-progress-circular>
+                <v-icon v-else>mdi-refresh</v-icon>
+              </v-btn>
+            </template>
           </v-row>
           <v-row class="ma-0">
-            <!--✅目录列表-->
-            <directory-list
-              v-if="currentPathIsDir"
+            <directory-or-file-detail
               ref="directoryOrFileDetail"
+              :operation-option="operationOption"
               :currentPath="currentPath"
               :fileIconList="fileIconList"
               :role-id="roleId"
-              :refreshing="isRefreshDirectory"
-              :item-list="currentDataList"
+              :refreshing="refreshing"
               :tableSearchText="tableSearchText"
+              :currentMarkdownPath="currentMarkdownPath"
 
               v-on:path-changed="doUiAction('changeCurrentPath', $event)"
               v-on:copy-item="doUiAction('copyItem', $event)"
               v-on:cut-item="doUiAction('cutItem', $event)"
               v-on:edit-markdown-item="doUiAction('startUpdateMarkdown', $event)"
               v-on:paste-item="doUiAction('pasteItem', $event)"
-              v-on:file-deleted="doUiAction('getDirectoryData')"
+              v-on:total-change="doUiAction('setDirectoryTotal', $event)"
+              v-on:refresh-status="doUiAction('onRefreshStatusChange', $event)"
+              v-on:refresh-done="doUiAction('stopRefresh')"
+              v-on:file-deleted="doUiAction('refreshDirectory')"
               style="width: 100%;"
-            ></directory-list>
-            <!--✅文件详情-->
-            <file-detail v-else :currentPath="currentPath"></file-detail>
+            ></directory-or-file-detail>
           </v-row>
         </v-card>
         <!-- <<<<<<<<<<<<< 页面内容 -->
+        <!-- 弹窗组件 >>>>>>>> -->
+        <!--文档编辑器弹窗-->
+        <md-dialog
+          v-model="isMarkdownEditDialogShow"
+          @save-content="doUiAction('saveMarkdown', $event)"
+          :default-md="willEditMarkdownItem">
+        </md-dialog>
+        <!--上传文件弹窗-->
+        <file-browser-upload
+          v-if="uploadFileDialog"
+          :current-path="currentPath"
+          :file-list="uploadFileList"
+          :file-icon-list="fileIconList"
+
+          :max-upload-files-count="maxUploadFilesCount"
+          :max-upload-file-size="maxUploadFileSize"
+          v-on:add-files="doUiAction('addNewFileList', $event)"
+          v-on:remove-file="doUiAction('removeUploadFileItem', $event)"
+          v-on:clear-files="doUiAction('cleanUploadList')"
+          v-on:cancel="doUiAction('cancelUpload')"
+          v-on:uploaded="doUiAction('uploadSuccess')"
+        ></file-browser-upload>
+        <!-- <<<<<<<<<< 弹窗组件 -->
         <!--✌️<<<<<<<<<< 页面主体内容 -->
       </div>
 
@@ -125,11 +145,10 @@
 
 <!-- 加载页面组件 >>>>>>>>>>>>> -->
 {% include 'component/fileBrowser/breadcrumbs.html' %}
-{% include 'component/fileBrowser/fileDetail.html' %}
-{% include 'component/fileBrowser/directoryList.html' %}
+{% include 'component/fileBrowser/directoryOrFileDetail.html' %}
+{% include 'component/fileBrowser/Toolbar.html' %}
 {% include 'component/fileBrowser/fileBrowserUpload.html' %}
-{% include 'component/fileBrowser/markdownEditor.html' %}
-{% include 'component/fileBrowser/createNewDirectory.html' %}
+{% include 'component/fileBrowser/mdEdit.html' %}
 {% include 'component/markdown2html/md2html.html' %}
 {% include 'common/jianghuJs/fixedTableHeightV4.html' %}
 <!-- <<<<<<<<<<<<< 加载页面组件 -->
@@ -147,6 +166,12 @@ new Vue({
     isHelpPageDrawerShown: false,
     showTableZebraLine: true,
     isMobile: window.innerWidth < 500,
+    // 表格相关数据
+    rootDirectory: Object.freeze({
+      name: "网盘",
+      code: "cloudDrive",
+      icon: "mdi-cloud-circle"
+    }),
     // 成员的角色: teacher / student 部分功能只有teacher能用
     roleId: "teacher",
     fileIconList: Object.freeze({
@@ -170,53 +195,55 @@ new Vue({
       // xls: "mdi-file-excel",
       // other: "mdi-file-outline"
     }),
+    // max files count to upload at once. Unlimited by default
+    maxUploadFilesCount: 0,
+    // max file size to upload. Unlimited by default
+    maxUploadFileSize: 1024 * 1024 * 1024,
+    imageMaxUploadFileSize: 700 * 1024,
+
+    materialType: '',
+    operationOption: {delete: true, copy: true, recycle: true, renameFile: true},
 
     tableSearchText: "",
     totalCount: 0,
     currentPath: "/cloudDemo/",
-    currentDirectory: 'cloudDrive',
-    currentMarkdownItem: null,
+    isMarkdownEditDialogShow: false,
+    currentDirectory: null,
+    currentMarkdownPath: null,
+    uploadFileDialog: false, // or an Array of files
+    uploadFileList: [], // or an Array of files
     // 目录刷新状态
-    isRefreshDirectory: false,
+    refreshing: false,
     currentCopyPath: '',
-    // 数据对象
-    directoryAndFileMap: {}
+    willEditMarkdownItem: null,
+    moreBtn: [
+      {value: 'mkDir', title: '创建文件夹'},
+      {value: 'rename', title: '重命名'},
+      {value: 'cut', title: '剪切'},
+      {value: 'paste', title: '粘贴'}
+    ],
   }),
   computed: {
     // 文件夹
     currentPathIsDir() {
-      return this.currentPath.endsWith('/');
+      return this.currentPath[this.currentPath.length - 1] === "/";
     },
-    // 当前目录的缓存数据key
-    currentPathCacheKey() {
-      const currentPathStr = this.currentPath.replace(/\//g, '_');
-      return 'directoryAndFile_' + currentPathStr;
+    // 文件
+    currentPathIsFile() {
+      return !(this.currentPath && this.currentPathIsDir);
     },
-    currentDataList() {
-      const list = this.directoryAndFileMap[this.currentPathCacheKey];
-      return _.cloneDeep(list);
-    }
-  },
-  watch: {
-    currentPath() {
-      this.doUiAction('getDirectoryData');
-    }
   },
   async created() {
-    this.doUiAction('getDirectoryData');
+    this.currentDirectory = this.rootDirectory.code;
+  },
+  mounted() {
   },
   methods: {
     async doUiAction(uiActionId, uiActionData) {
       switch (uiActionId) {
-        case 'getDirectoryData':
-          await this.startRefresh();
-          await this.getDirectoryCacheData();
-          await this.getDirectoryBackendData();
-          await this.saveDirectoryDataToCache();
-          await this.stopRefresh();
-          break;
         case 'pasteItem':
           await this.pasteItem();
+          await this.refreshDirectory();
           break;
         case 'copyItem':
           await this.copyItem(uiActionData);
@@ -227,6 +254,9 @@ new Vue({
         case 'changeCurrentPath':
           await this.changeCurrentPath(uiActionData);
           break;
+        case 'refreshDirectory':
+          await this.refreshDirectory();
+          break;
         case 'stopRefresh':
           await this.stopRefresh();
           break;
@@ -236,67 +266,64 @@ new Vue({
         case 'setDirectoryTotal':
           await this.setDirectoryTotal(uiActionData);
           break;
+        case 'startCreateMarkdown':
+          await this.openMarkdownDialog();
+          break;
         case 'startUpdateMarkdown':
           await this.prepareUpdateMarkdown(uiActionData);
+          await this.openMarkdownDialog();
+          break;
+        case 'saveMarkdown':
+          await this.createMarkdownFileToCache(uiActionData);
+          await this.doSaveMarkdown(uiActionData);
+          await this.cleanMarkdownEditFormData();
+          await this.closeMarkdownDialog();
+          await this.refreshDirectory();
+          break;
+        case 'addNewFileList':
+          await this.addNewFileList(uiActionData);
+          break;
+        case 'removeUploadFileItem':
+          await this.removeUploadFileItem(uiActionData);
+          break;
+        case 'cleanUploadList':
+          await this.cleanUploadList();
+          break;
+        case 'cancelUpload':
+          await this.onUploadCancel();
+          break;
+        case 'uploadSuccess':
+          await this.onUploadSuccess();
           break;
       }
     },
-    // -- 读取数据 getDirectoryData >>>>>>>>>>>> ------
-    async getDirectoryCacheData() {
-      let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
-      if (!directoryAndFileMapCache) directoryAndFileMapCache = '{}';
-      directoryAndFileMapCache = JSON.parse(directoryAndFileMapCache)
-      if(directoryAndFileMapCache.hasOwnProperty(this.currentPathCacheKey)) {
-        this.directoryAndFileMap[this.currentPathCacheKey] = this.handleDirectoryData(directoryAndFileMapCache[this.currentPathCacheKey]);
-        this.directoryAndFileMap = _.cloneDeep(this.directoryAndFileMap);
-      }
+    /**
+     * ✅刷新当前目录
+     */
+    refreshDirectory() {
+      console.log("刷新当前目录");
+      this.refreshing = true;
     },
-    async getDirectoryBackendData() {
-      if (this.currentPath.endsWith('/')) {
-        const cacheKey = this.currentPathCacheKey;
-        const r_fileOrDirList = (await window.jianghuAxios({
-          data: {
-            appData: {
-              pageId: 'cloud_drive',
-              actionId: 'list',
-              actionData: {
-                path: this.currentPath
-              },
-            }
-          }
-        })).data.appData.resultData.rows;
-        this.directoryAndFileMap[cacheKey] = this.handleDirectoryData(r_fileOrDirList);
-        this.directoryAndFileMap = _.cloneDeep(this.directoryAndFileMap);
-      }
-    },
-    saveDirectoryDataToCache() {
-      localStorage.setItem('directoryAndFileMapCache', JSON.stringify(this.directoryAndFileMap));
-    },
-    handleDirectoryData(directoryDataList) {
-      const directoryList = directoryDataList.filter(item => {
-        return item.type === "dir";
-      });
-      // 目录排序，回收站在第一位
-      directoryList.sort((a, b) => {
-        return (b.basename.includes('_recycle')) - (a.basename.includes('_recycle'));
-      })
-      const fileList = directoryDataList.filter(item => {
-        return item.type === "file";
-      });
-      return directoryList.concat(fileList);
-    },
-    startRefresh() {
-      this.isRefreshDirectory = true;
-    },
+    /**
+     * ✅停止刷新
+     */
     stopRefresh() {
-      this.isRefreshDirectory = false;
+      this.refreshing = false;
     },
-    // -- <<<<<<<<<<<< 读取数据 getDirectoryData ------
+    /**
+     * ✅读取缓存数据
+     */
     getDirectoryAndFileMapFromCache() {
       let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
       if (!directoryAndFileMapCache) return '{}';
-      this.directoryAndFileMap = JSON.parse(directoryAndFileMapCache);
       return JSON.parse(directoryAndFileMapCache);
+    },
+    /**
+     * ✅打开markdown编辑器弹窗
+     * @param item
+     */
+    openMarkdownDialog(item) {
+      this.isMarkdownEditDialogShow = true;
     },
     /**
      * ✅检查文件名
@@ -315,6 +342,22 @@ new Vue({
       });
     },
     /**
+     * 新建文件对象
+     * @param mdName
+     * @returns {{path, extension: string, basename: string, size: number, name: string, type: string, sync: boolean}}
+     */
+    createNewMarkdownFileObject(mdName) {
+      return {
+        "type": "file",
+        "path": this.currentPath,
+        "name": `${mdName}.md`,
+        "basename": `${mdName}.md`,
+        "sync": true,
+        "extension": "md",
+        "size": 16,
+      };
+    },
+    /**
      * ✅保存markdown文件到缓存
      * @param content
      * @param markdownName
@@ -328,15 +371,7 @@ new Vue({
       }
       const mdExist = this.checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName)
       if (!mdExist) {
-        directoryAndFileMapCache[getKey].push({
-          "type": "file",
-          "path": this.currentPath,
-          "name": `${mdName}.md`,
-          "basename": `${mdName}.md`,
-          "sync": true,
-          "extension": "md",
-          "size": 16,
-        });
+        directoryAndFileMapCache[getKey].push(this.createNewMarkdownFileObject(mdName));
       }
       // 重新根据变动整理下目录列表
       this.$refs.directoryOrFileDetail.handleDirectoryData(directoryAndFileMapCache[getKey]);
@@ -344,11 +379,44 @@ new Vue({
       localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
     },
     /**
+     * ✅保存markdown文档
+     * @param content markdown文件内容
+     * @param markdownName markdown文件名
+     * @returns {Promise<void>}
+     */
+    async doSaveMarkdown({content, mdName}) {
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'saveMarkdown',
+            actionData: {
+              content,
+              name: mdName,
+              path: this.currentPath
+            },
+          }
+        }
+      });
+    },
+    /**
+     * ✅清理markdown编辑表单数据
+     */
+    cleanMarkdownEditFormData() {
+      this.willEditMarkdownItem = null;
+    },
+    /**
+     * ✅关闭markdown编辑器弹窗
+     */
+    closeMarkdownDialog() {
+      this.isMarkdownEditDialogShow = false;
+    },
+    /**
      *  ✅修改目录刷新状态
      * @param event
      */
     onRefreshStatusChange(event) {
-      this.isRefreshDirectory = event;
+      this.refreshing = event;
     },
     /**
      * ✅同步当前目录的子文件/文件夹数量
@@ -356,16 +424,75 @@ new Vue({
     setDirectoryTotal(count) {
       this.totalCount = count;
     },
-
     /**
-     /**
+     * ✅检查待上传图片大小，并剔除超过上限的
+     * @param files
+     */
+    checkAndFilterImageExceedMaxSize(files) {
+      if (this.imageMaxUploadFileSize) {
+        const isImage = this.materialType === 'image';
+        let exceedMaxSizeImg = false;
+        if (isImage) {
+          exceedMaxSizeImg = files.some(file => file.size > this.imageMaxUploadFileSize);
+        }
+        const checkImageSizeError = isImage && exceedMaxSizeImg;
+        if (checkImageSizeError) {
+          window.vtoast.fail('部分图片文件大于 700K, 请重新压缩过后再上传素材');
+          files = files.filter(file => file.size <= this.imageMaxUploadFileSize);
+        }
+      }
+    },
+    /**
+     * ✅新选择上传文件（多选）
+     * @param files
+     */
+    addNewFileList(files) {
+      files = Array.from(files);
+      this.checkAndFilterImageExceedMaxSize(files);
+      if (this.uploadFileDialog === false) {
+        this.uploadFileList = [];
+      }
+      this.uploadFileDialog = true;
+      if (this.maxUploadFilesCount && this.uploadFileList.length + files.length > this.maxUploadFilesCount) {
+        files = files.slice(0, this.maxUploadFilesCount - this.uploadFileList.length);
+      }
+      this.uploadFileList.push(...files);
+    },
+    /**
+     * ✅从上传列表中删除文件
+     * @param index
+     */
+    removeUploadFileItem(index) {
+      this.uploadFileList.splice(index, 1);
+    },
+    /**
+     * ✅文件上传取消
+     */
+    onUploadCancel() {
+      this.uploadFileList = [];
+      this.uploadFileDialog = false;
+    },
+    /**
+     * ✅清空上传文件列表
+     */
+    cleanUploadList() {
+      this.uploadFileList = [];
+    },
+    /**
+     * ✅文件上传成功
+     */
+    onUploadSuccess() {
+      this.onUploadCancel();
+      this.doUiAction('refreshDirectory');
+    },
+    /**
      * ✅从cache中过滤掉被移走的文件
      * @param directoryAndFileMapCache
      * @param fromKey
      * @param filename
      * @returns {*}
      */
-    filterFileFromCache(directoryAndFileMapCache, fromKey, filename) {
+    filterMoveSuccessFile(directoryAndFileMapCache, fromKey, filename) {
       return directoryAndFileMapCache[fromKey].filter(item => {
         return item.basename !== filename;
       });
@@ -394,7 +521,7 @@ new Vue({
      * @param filename
      * @param pasteMode  'moveFile', 'copyFile'
      */
-    doMoveOrCopyFileItemToCache(fromDir, toDir, filename, pasteMode) {
+    syncMoveOrCopyFileToCache(fromDir, toDir, filename, pasteMode) {
       console.log(fromDir, toDir, filename, pasteMode)
       if (fromDir !== toDir) {
         const fromPath = fromDir.replace(/\//g, '_');
@@ -409,7 +536,7 @@ new Vue({
         }
         if (pasteMode === 'moveFile') {
           if (cacheKeyList.includes(fromKey)) {
-            directoryAndFileMapFromCache[fromKey] = this.filterFileFromCache(directoryAndFileMapFromCache, fromKey, filename);
+            directoryAndFileMapFromCache[fromKey] = this.filterMoveSuccessFile(directoryAndFileMapFromCache, fromKey, filename);
           }
         }
         this.directoryAndFileList = directoryAndFileMapFromCache[toKey];
@@ -417,7 +544,7 @@ new Vue({
       }
     },
     // ✅同步文件改动到后端
-    async doMoveOrCopyFileItemToServer(fromDir, toDir, filename) {
+    async syncMoveOrCopyFileRequest(fromDir, toDir, filename) {
       await window.jianghuAxios({
         data: {
           appData: {
@@ -438,7 +565,7 @@ new Vue({
      */
     async pasteItem() {
       window.vtoast.loading({message: this.pasteMode === 'cut' ? '文件移动中' : '文件复制中', time: -1});
-      if (this.isRefreshDirectory) {
+      if (this.refreshing) {
         requestAnimationFrame(() => {
           this.pasteItem();
         })
@@ -448,8 +575,8 @@ new Vue({
       const toDir = this.currentPath;
       const filename = this.currentCopyPath.substring(this.currentCopyPath.lastIndexOf('/') + 1);
       this.currentCopyPath = null;
-      this.doMoveOrCopyFileItemToCache(fromDir, toDir, filename, this.pasteMode === 'cut' ? 'moveFile' : 'copyFile');
-      await this.doMoveOrCopyFileItemToServer(fromDir, toDir, filename);
+      this.syncMoveOrCopyFileToCache(fromDir, toDir, filename, this.pasteMode === 'cut' ? 'moveFile' : 'copyFile');
+      await this.syncMoveOrCopyFileRequest(fromDir, toDir, filename);
       window.vtoast.success(this.pasteMode === 'cut' ? '文件移动成功' : '文件复制成功');
     },
     /**
@@ -458,8 +585,14 @@ new Vue({
      * @param path markdown文件路径
      * @returns {Promise<void>}
      */
-    async prepareUpdateMarkdown(funObj) {
-      this.currentMarkdownItem = funObj;
+    async prepareUpdateMarkdown({path}) {
+      this.currentMarkdownPath = path;
+      const content = await this.$refs.directoryOrFileDetail.getMarkdownDetail(path);
+      this.currentMarkdownPath = null;
+      this.willEditMarkdownItem = {
+        content: content,
+        name: path.substring(path.lastIndexOf('/') + 1)
+      };
     },
     /**
      * ✅剪切文件
@@ -479,12 +612,26 @@ new Vue({
       this.pasteMode = 'copy'
       window.vtoast.success('<$ constantUiMap.btn.copied $>');
     },
-
+    /**
+     * ✅上一层
+     */
+    goBack() {
+      let path = this.currentPath;
+      if (path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      if (path !== '') {
+        this.changeCurrentPath(path.substring(0, path.lastIndexOf('/') + 1));
+      } else {
+        this.changeCurrentPath("/")
+      }
+    },
     /**
      * ✅切换目录
      * @param path
      */
     changeCurrentPath(path) {
+      console.log(path);
       this.currentPath = path;
     }
   }

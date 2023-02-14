@@ -1,0 +1,442 @@
+<template id="directory-list">
+  <v-card>
+    <!-- ✅文件列表 -->
+    <v-card-text class="pa-0">
+      <v-data-table
+        :headers="headers"
+        :search="tableSearchText"
+        mobile-breakpoint="0"
+        :items="itemList"
+        item-key="path"
+        :loading="refreshing"
+        :footer-props="{ itemsPerPageOptions: [20, 50, -1], itemsPerPageText: '每页行数', itemsPerPageAllText: '所有'}"
+        :items-per-page="-1"
+        mobile-breakpoint="0"
+        :class="{'zebraLine': isTableZebraLineShown }"
+        checkbox-color="success"
+        fixed-header
+        class="jh-fixed-table-height elevation-0 mt-0 mb-xs-4"
+      >
+        <!--没有数据-->
+        <template v-slot:progress>
+          <v-progress-linear height="1px" indeterminate color="primary"></v-progress-linear>
+        </template>
+        <template v-slot:loading>
+          <div class="jh-no-data">
+            <v-progress-circular indeterminate :size="20" color="primary"></v-progress-circular>
+            <span>读取目录中</span>
+          </div>
+        </template>
+        <template v-slot:no-data>
+          <div class="jh-no-data">暂无数据</div>
+        </template>
+        <template v-slot:no-results>
+          <div class="jh-no-data">暂无数据</div>
+        </template>
+        <!--✅文件名-->
+        <template v-slot:item.name="{ item }">
+          <!--✅文件名、图片-->
+          <div v-if="item.type === 'dir'" @click="doUiAction('openDirectoryOrFile', item.path)" role="button">
+            <v-icon v-if="item.basename.endsWith('_recycle')">mdi-delete-clock-outline</v-icon>
+            <v-icon v-else>mdi-folder-outline</v-icon>
+            <span class="ml-2">{{ item.basename.endsWith('_recycle') ? '回收站' : item.basename }}</span>
+          </div>
+          <div v-else @click="doUiAction('openDirectoryOrFile', item.path)" class="d-flex" role="button">
+            <template>
+              <v-avatar
+                tile
+                v-if="checkIsImg(item.basename)"
+                class=""
+                size="25"
+              >
+                <v-img :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}/${item.basename}`"></v-img>
+              </v-avatar>
+              <v-icon v-else>{{ fileIconList[item.extension.toLowerCase()] || fileIconList['other'] }}</v-icon>
+            </template>
+            <span style="flex: 1; line-height: 25px" class="ml-2">{{ item.basename }}</span>
+          </div>
+        </template>
+        <!--✅文件大小-->
+        <template v-slot:item.size="{ item }">
+          {{ item.type === 'file' ? (item.size ? parseFileSize(item.size) : '-') : '' }}
+        </template>
+        <!--✅文件类型-->
+        <template v-slot:item.mtime="{ item }">
+          {{ item.type === 'file' ? (item.type === 'file' && item.mtime ? dayjs.unix(item.mtime).format("YYYY-MM-DD HH:mm:ss") : '-') : '' }}
+        </template>
+        <!--✅文件操作-->
+        <template v-slot:item.action="{ item }">
+          <!--✅文件夹操作-->
+          <div class="text-right" v-if="item.type === 'dir' && currentPath !== '/'">
+            <!--✅删除-->
+            <v-tooltip top v-if="item.path.indexOf('/_recycle/') === -1 && roleId === 'teacher'">
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
+                  <v-progress-circular v-if="currentDeleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                  <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
+                </v-btn>
+              </template>
+              <span>移入回收站</span>
+            </v-tooltip>
+          </div>
+          <!--✅文件操作-->
+          <template v-if="item.type === 'file'">
+            <!--✅非回收站的文件、文件夹操作-->
+            <div class="text-right" v-if="item.path.indexOf('_recycle') === -1">
+              <template v-if="item.sync">
+                <v-progress-circular indeterminate :size="18" color="primary"></v-progress-circular>
+                <span>同步中</span>
+              </template>
+              <template v-else>
+                <!--✅文档编辑-->
+                <v-tooltip top v-if="item.extension === 'md'">
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('editMarkdownItem', item)">
+                      <v-progress-circular v-if="currentMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                      <v-icon v-else color="grey lighten-1" style="font-size: 20px;">mdi-text-box-edit-outline</v-icon>
+                    </v-btn>
+                  </template>
+                  <span>编辑文档</span>
+                </v-tooltip>
+                <!--✅剪切-->
+                <v-tooltip top v-if="roleId === 'teacher'">
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
+                      <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-cut</v-icon>
+                    </v-btn>
+                  </template>
+                  <span>剪切</span>
+                </v-tooltip>
+                <!--✅重命名-->
+                <v-menu v-model="item.newFolderPopper" :close-on-content-click="false" :nudge-width="200" offset-y>
+                  <template v-slot:activator="{ on }">
+                    <v-btn v-if="currentPath" icon v-on="on" @click="doUiAction('startRenameItem', item)">
+                      <v-tooltip top>
+                        <template v-slot:activator="{ on, attrs }">
+                          <v-icon color="grey lighten-1" v-on="on" style="font-size: 20px;">mdi-rename-box</v-icon>
+                        </template>
+                        <span>重命名</span>
+                      </v-tooltip>
+                    </v-btn>
+                  </template>
+                  <!--✅重命名弹窗-->
+                  <v-card>
+                    <v-card-text>
+                      <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="item.newFilename" hide-details color="success" dense filled single-line></v-text-field>
+                    </v-card-text>
+                    <v-card-actions>
+                      <div class="flex-grow-1"></div>
+                      <v-btn @click="item.newFolderPopper = false" small depressed><$ constantUiMap.btn.cancel $></v-btn>
+                      <v-btn small color="success" :disabled="!item.newFilename" depressed @click="doUiAction('doRenameItem', item)"><$
+                        constantUiMap.btn.rename $>
+                      </v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-menu>
+                <!--✅复制-->
+                <v-tooltip top>
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('copyItem', item)">
+                      <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-copy</v-icon>
+                    </v-btn>
+                  </template>
+                  <span>复制</span>
+                </v-tooltip>
+                <!--✅删除-->
+                <v-tooltip top v-if="roleId === 'teacher'">
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
+                      <v-progress-circular v-if="currentDeleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                      <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
+                    </v-btn>
+                  </template>
+                  <span>移入回收站</span>
+                </v-tooltip>
+              </template>
+            </div>
+            <div v-else class="text-right">
+              <!--✅回收站事件：剪切-->
+              <v-tooltip top v-if="roleId === 'teacher'">
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
+                    <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-cut</v-icon>
+                  </v-btn>
+                </template>
+                <span>剪切</span>
+              </v-tooltip>
+            </div>
+          </template>
+        </template>
+        <!--✅表格底部右侧功能按钮-->
+        <template v-slot:footer.prepend>
+          <v-menu top offset-y :close-on-content-click="false">
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn v-bind="attrs" v-on="on" icon>
+                <v-icon>mdi-menu</v-icon>
+              </v-btn>
+            </template>
+            <v-list>
+              <v-list-item>
+                <v-switch v-model="isTableZebraLineShown" label="显示斑马纹" dense flat></v-switch>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+        </template>
+        <!--✅表格底部右侧分页-->
+        <template v-slot:footer.page-text="pagination">
+          <span>{{ pagination.pageStart }}-{{ pagination.pageStop }}</span>
+          <span class="ml-1">共{{ pagination.itemsLength }}条</span>
+        </template>
+      </v-data-table>
+    </v-card-text>
+
+    <!--✅<<<<<<<<<<<<目录-->
+  </v-card>
+</template>
+
+<script>
+Vue.component("directory-list", {
+  vuetify: new Vuetify(),
+  name: 'directory-list',
+  template: '#directory-list',
+  props: {
+    fileIconList: Object,
+    roleId: String,
+    currentPath: String,
+    refreshing: Boolean,
+    tableSearchText: String,
+    itemList: []
+  },
+  data() {
+    return {
+      currentMarkdownPath: null,
+      isTableZebraLineShown: true,
+      currentDeleteItemPath: null,
+      currentMarkdownContent: null,
+      headers: [
+        {text: '文件名', align: 'start', value: 'name', width: '40%'},
+        {text: '大小', value: 'size', width: '20%'},
+        {text: '更新时间', value: 'mtime', width: '20%'},
+        {text: '', value: 'action', sortable: false}
+      ],
+      dayjs: dayjs,
+      // 待删除文件路径
+      deleteItem: null
+    };
+  },
+  async created() {
+  },
+  methods: {
+    async doUiAction(uiActionId, uiActionData) {
+      switch (uiActionId) {
+        // item 操作
+        case 'openDirectoryOrFile':
+          this.openDirectoryOrFile(uiActionData);
+          break;
+        case 'editMarkdownItem':
+          await this.editMarkdownItem(uiActionData);
+          break;
+        case 'cutItem':
+          this.cutItem(uiActionData);
+          break;
+        case 'copyItem':
+          this.copyItem(uiActionData);
+          break;
+        case 'startRenameItem':
+          this.startRenameItem(uiActionData);
+          break;
+        case 'doRenameItem':
+          await this.prepareCreateFileDate(uiActionData);
+          await this.doRenameItem(uiActionData);
+          this.closeRenameDialog(uiActionData);
+          break;
+        case 'deleteItem':
+          await this.prepareDeleteItem(uiActionData);
+          await this.confirmDeleteItemDialog();
+          await this.doDeleteItem();
+          break;
+      }
+    },
+    // ------ 目录数据 --------------
+    /**
+     * ✅修复table表格高度
+     */
+    fixedTableHeight() {
+      requestAnimationFrame(resetTableMaxHeight)
+    },
+    /**
+     * ✅获取markdown文件的内容
+     * @param path
+     * @returns {Promise<void>}
+     */
+    async getMarkdownDetail(path) {
+      this.currentMarkdownContent = (await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'getMarkdownContent',
+            actionData: {
+              path
+            },
+          }
+        }
+      })).data.appData.resultData.mdContent;
+      return this.currentMarkdownContent;
+    },
+    // ------------------------- 目录的数据分析处理 >>>>>>>>>> -------------------------
+
+    // ------------------------- 目录下item项 操作 >>>>>>>>>> -------------------------
+    /**
+     * 开始删除
+     * @param funObj
+     */
+    async prepareDeleteItem(funObj) {
+      this.deleteItem = _.cloneDeep(funObj);
+      this.currentDeleteItemPath = this.deleteItem.path;
+    },
+    async confirmDeleteItemDialog() {
+      let confirmed = await window.confirmDialog({
+          title:
+            `<$ constantUiMap.btn.sureDelete $>${this.deleteItem.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}? \n ${this.deleteItem.basename}`
+        }
+      );
+      if (!confirmed) {
+        throw new Error("[confirmDeleteItemDialog] 否");
+      }
+    },
+    async doDeleteItem() {
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'delete',
+            actionData: {path: this.currentDeleteItemPath},
+          }
+        }
+      })
+      this.deleteItem = null;
+      this.currentDeleteItemPath = null;
+      this.$emit("file-deleted");
+    },
+    /**
+     * 文档编辑
+     * @param item
+     */
+    async editMarkdownItem(item) {
+      this.currentMarkdownPath = item.path;
+      await this.getMarkdownDetail(item.path);
+      this.currentMarkdownPath = null;
+      this.$emit("edit-markdown-item", {path: item.path, name: item.basename, content: this.currentMarkdownContent});
+    },
+    /**
+     * 剪切文件
+     * @param item
+     */
+    cutItem(item) {
+      this.$emit("cut-item", item.path);
+    },
+    /**
+     * 复制文件
+     * @param item
+     */
+    copyItem(item) {
+      this.$emit("copy-item", item.path);
+    },
+    /**
+     * 打开重命名文件mini弹窗
+     * @param item
+     */
+    startRenameItem(item) {
+      item.newFilename = item.basename;
+    },
+    /**
+     * 检查重命名文件名
+     * @param item
+     * @returns {Promise<void>}
+     */
+    prepareCreateFileDate(item) {
+      const {newFilename} = item;
+      if (!newFilename) {
+        window.vtoast.fail('请输入新的文件名称');
+        throw new Error("[prepareCreateFileDate] 否");
+      }
+    },
+    /**
+     * 同步重命名到服务端
+     * @param funObj
+     * @returns {Promise<void>}
+     */
+    async doRenameItem(funObj) {
+      const {path, newFilename} = funObj;
+      window.vtoast.loading("<$ constantUiMap.btn.fileRename $>");
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'renameFile',
+            actionData: {
+              path,
+              newFilename
+            },
+          }
+        }
+      })
+      window.vtoast.success('<$ constantUiMap.btn.renamedSuccess $>');
+    },
+    /**
+     * 关闭重命名mini弹窗
+     * @param item
+     */
+    closeRenameDialog(item) {
+      item.newFolderPopper = false;
+    },
+    // ------------------------- <<<<<<<<<<<<< 目录下item项 操作 -------------------------
+    // ------ 公共方法 --------------
+    /**
+     * 检查当前文件是否图片
+     * @param filename
+     * @returns {boolean}
+     */
+    checkIsImg(filename) {
+      return /\.(jpg|jpeg|png|GIF|JPG|PNG)$/.test(filename);
+    },
+    /**
+     * 打开目录/文件
+     * @param path
+     */
+    openDirectoryOrFile(path) {
+      this.$emit("path-changed", path);
+    },
+    /**
+     * 文件大小计算
+     * @param bytes
+     * @param decimals
+     * @returns {string}
+     */
+    parseFileSize(bytes, decimals = 2) {
+      if (bytes === 0) return '0 bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    },
+  },
+});
+</script>
+
+<style scoped>
+.v-application .v-data-table .v-data-table__wrapper .v-data-table__progress {
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.v-application .v-data-table .v-data-table__wrapper .v-data-table__progress th {
+  width: 100%;
+  display: block;
+  padding: 0!important;
+}
+.v-application .v-data-table .v-data-table__wrapper .v-data-table__progress .v-progress-linear {
+  max-width: 100%!important;
+}
+</style>

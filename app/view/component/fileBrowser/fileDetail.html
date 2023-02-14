@@ -1,0 +1,104 @@
+<template id="file-detail">
+  <v-card style="width: 100%">
+    <v-card-text>
+      <div v-if="fileType === 'markdown'" style="height: calc(100vh - 255px); overflow: auto;">
+        <div style="text-align: left;"><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}` }}</div>
+        <md2html v-if="currentMarkdownContent" :article-content="currentMarkdownContent"></md2html>
+        <div v-else class="d-flex align-center pa-10" style="justify-content: center">
+          <v-progress-circular indeterminate :size="30" color="primary"></v-progress-circular>
+          <span>加载中</span>
+        </div>
+      </div>
+      <template v-else>
+        <v-img v-if="fileType === 'image'" min-width="30" max-width="500" min-height="30" max-height="500"
+               :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
+               lazy-src=""
+               class="grey lighten-2 mb-5" style="margin: auto; cursor: pointer;"
+               @click="openFile(`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`)">
+        </v-img>
+        <video v-if="fileType === 'video'" width="80%" min-width="30" max-width="500" min-height="30" max-height="500"
+               style="height: 70vh"
+               :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
+               lazy-src=""
+               class="grey lighten-2 mb-5" style="display: block; margin: auto;" controls>
+          <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`"
+                  type="video/mp4">
+        </video>
+        <audio v-if="fileType === 'audio'" min-width="30" max-width="500" min-height="30" max-height="500"
+               :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
+               lazy-src=""
+               class="my-10" style="display: block; margin: auto;" controls>
+          <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`"
+                  type="audio/mpeg">
+        </audio>
+        <div><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}` }}</div>
+      </template>
+    </v-card-text>
+  </v-card>
+</template>
+<script>
+Vue.component("file-detail", {
+  vuetify: new Vuetify(),
+  name: 'file-detail',
+  template: '#file-detail',
+  props: {
+    currentPath: String,
+  },
+  data: () => ({
+    host: window.location.host,
+    currentMarkdownContent: null
+  }),
+  created() {
+    if(this.fileType === 'markdown') {
+      this.getMarkdownDetail();
+    }
+  },
+  computed: {
+    fileType() {
+      const ext = this.currentPath.substring(this.currentPath.lastIndexOf('.') + 1);
+      if (ext) {
+        if (['jpg', 'jpeg', 'png', 'gif', 'ico', 'svg'].includes(ext.toLowerCase())) {
+          return 'image';
+        }
+        if (['mp4'].includes(ext.toLowerCase())) {
+          return 'video';
+        }
+        if (['mp3'].includes(ext.toLowerCase())) {
+          return 'audio';
+        }
+        if (['md'].includes(ext.toLowerCase())) {
+          return 'markdown';
+        }
+      }
+      return '';
+    }
+  },
+  methods: {
+    /**
+     * 新窗口打开文件
+     * @param path
+     */
+    openFile(path) {
+      window.open(path)
+    },
+    /**
+     * ✅获取markdown文件的内容
+     * @param path
+     * @returns {Promise<void>}
+     */
+    async getMarkdownDetail() {
+      this.currentMarkdownContent = (await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'getMarkdownContent',
+            actionData: {
+              path: this.currentPath
+            },
+          }
+        }
+      })).data.appData.resultData.mdContent;
+    },
+  }
+});
+</script>

@@ -1,0 +1,96 @@
+<template id="breadcrumbs">
+  <v-row class="ma-0 pa-0">
+    <v-btn color="#E8F5E9" @click="goBack" small class="success--text elevation-0">
+      <v-icon class="mr-1" small>mdi-arrow-left</v-icon>
+      上一级
+    </v-btn>
+    <v-breadcrumbs class="py-0 px-2 ml-2 jh-file-explorer-breadcrumbs">
+      <!--根目录-->
+      <v-breadcrumbs-item :input-value="currentPath === '/'" @click="changeCurrentPath('/')" role="button">
+        <v-icon class="mr-2" color="success">mdi-cloud-circle</v-icon>
+        <span style="font-size: 14px;" class="font-weight-medium success--text">网盘</span>
+      </v-breadcrumbs-item>
+      <!--路径目录-->
+      <v-breadcrumbs-item
+        v-for="(pathItem, index) in currentPathList"
+        :input-value="index === currentPathList.length - 1" :key="index + '-btn'"
+        @click="changeCurrentPath(pathItem.path)"
+        role="button">
+        <v-icon color="success">mdi-chevron-right</v-icon>
+        <span style="font-size: 14px;" class="ml-2 font-weight-medium success--text">{{ pathItem.name.endsWith('_recycle') ? '回收站' : pathItem.name }}</span>
+      </v-breadcrumbs-item>
+    </v-breadcrumbs>
+  </v-row>
+</template>
+<script>
+Vue.component("breadcrumbs", {
+  vuetify: new Vuetify(),
+  name: 'breadcrumbs',
+  template: '#breadcrumbs',
+  props: {
+    currentPath: String,
+  },
+  data: () => ({
+    currentPathList: []
+  }),
+  created() {
+    this.buildCurrentPathList();
+  },
+  watch: {
+    currentPath() {
+      this.buildCurrentPathList();
+    }
+  },
+  methods: {
+    buildCurrentPathList() {
+      if(!this.currentPath) return;
+      let path = "/";
+      let pathItemList = this.currentPath.split("/").filter(item => !_.isEmpty(item));
+      pathItemList = pathItemList.map((item, index) => {
+        const itemIsLastOne = index === pathItemList.length - 1;
+        path += item + (!itemIsLastOne || this.currentPathIsDir ? "/" : "");
+        return {
+          name: item,
+          path
+        };
+      });
+      this.currentPathList = pathItemList;
+    },
+    changeCurrentPath(path) {
+      this.$emit('change-path', path + (path.endsWith('/') ? '' : '/'));
+    },
+    /**
+     * ✅上一层
+     */
+    goBack() {
+      let path = this.currentPath;
+      if (path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      if (path !== '') {
+        this.changeCurrentPath(path.substring(0, path.lastIndexOf('/') + 1));
+      } else {
+        this.changeCurrentPath("/")
+      }
+    },
+  }
+})
+</script>
+<style>
+
+.v-breadcrumbs {
+  margin-top: -3px;
+}
+
+.v-breadcrumbs li {
+  font-size: 12px;
+}
+
+.jh-file-explorer-breadcrumbs {
+  background-color: #E8F5E9;
+  border-radius: 4px;
+  word-break: break-all;
+  min-height: 32px;
+  margin-top: 1px;
+}
+</style>
