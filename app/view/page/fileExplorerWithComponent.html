@@ -9,7 +9,7 @@
     <v-main class="mt-15">
       <!-- 头部内容 >>>>>>>>>>>>> -->
       <div class="jh-page-second-bar px-8">
-        <div class="pt-3 text-h7 font-weight-bold">doUiAction
+        <div class="pt-3 text-h7 font-weight-bold">网盘
           <!-- 帮助页按钮 -->
           <v-icon @click="isHelpPageDrawerShownn = true" color="success" small>mdi-help-circle-outline</v-icon>
         </div>
@@ -142,13 +142,16 @@ new Vue({
   data: () => ({
     breadcrumbs: [
       {text: '首页', disabled: true,},
-      {text: 'doUiAction', disabled: true,}
+      {text: '网盘', disabled: true,}
     ],
     isHelpPageDrawerShown: false,
+
     showTableZebraLine: true,
     isMobile: window.innerWidth < 500,
     // 成员的角色: teacher / student 部分功能只有teacher能用
     roleId: "teacher",
+
+    // 文件icon
     fileIconList: Object.freeze({
       // zip: "mdi-folder-zip-outline",
       // rar: "mdi-folder-zip-outline",
@@ -171,15 +174,18 @@ new Vue({
       // other: "mdi-file-outline"
     }),
 
+    isRefreshDirectory: false,
+
     tableSearchText: "",
-    totalCount: 0,
     currentPath: "/cloudDemo/",
     currentDirectory: 'cloudDrive',
     currentMarkdownItem: null,
-    // 目录刷新状态
-    isRefreshDirectory: false,
     currentCopyPath: '',
-    // 数据对象
+    currentPasteMode: null,
+    pasteItemFromDir: null,
+    pasteItemFilename: null,
+
+    //目录文件缓存
     directoryAndFileMap: {}
   }),
   computed: {
@@ -192,9 +198,14 @@ new Vue({
       const currentPathStr = this.currentPath.replace(/\//g, '_');
       return 'directoryAndFile_' + currentPathStr;
     },
+    // 当前目录的数据
     currentDataList() {
       const list = this.directoryAndFileMap[this.currentPathCacheKey];
       return _.cloneDeep(list);
+    },
+    // 当前目录总文件数
+    totalCount(){
+      return this.currentDataList ? this.currentDataList.length : 0
     }
   },
   watch: {
@@ -215,8 +226,11 @@ new Vue({
           await this.saveDirectoryDataToCache();
           await this.stopRefresh();
           break;
-        case 'pasteItem':
-          await this.pasteItem();
+        case 'changeCurrentPath':
+          await this.changeCurrentPath(uiActionData);
+          break;
+        case 'startUpdateMarkdown':
+          await this.prepareUpdateMarkdown(uiActionData);
           break;
         case 'copyItem':
           await this.copyItem(uiActionData);
@@ -224,24 +238,17 @@ new Vue({
         case 'cutItem':
           await this.cutItem(uiActionData);
           break;
-        case 'changeCurrentPath':
-          await this.changeCurrentPath(uiActionData);
-          break;
-        case 'stopRefresh':
-          await this.stopRefresh();
-          break;
-        case 'onRefreshStatusChange':
-          await this.onRefreshStatusChange(uiActionData);
-          break;
-        case 'setDirectoryTotal':
-          await this.setDirectoryTotal(uiActionData);
-          break;
-        case 'startUpdateMarkdown':
-          await this.prepareUpdateMarkdown(uiActionData);
+        case 'pasteItem':
+          await this.preparePasteItem();
+          await this.doPasteItem ();
+          await this.clearPasteItem ();
           break;
       }
     },
     // -- 读取数据 getDirectoryData >>>>>>>>>>>> ------
+    startRefresh() {
+      this.isRefreshDirectory = true;
+    },
     async getDirectoryCacheData() {
       let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
       if (!directoryAndFileMapCache) directoryAndFileMapCache = '{}';
@@ -285,178 +292,21 @@ new Vue({
       });
       return directoryList.concat(fileList);
     },
-    startRefresh() {
-      this.isRefreshDirectory = true;
-    },
     stopRefresh() {
       this.isRefreshDirectory = false;
     },
     // -- <<<<<<<<<<<< 读取数据 getDirectoryData ------
-    getDirectoryAndFileMapFromCache() {
-      let directoryAndFileMapCache = localStorage.getItem('directoryAndFileMapCache');
-      if (!directoryAndFileMapCache) return '{}';
-      this.directoryAndFileMap = JSON.parse(directoryAndFileMapCache);
-      return JSON.parse(directoryAndFileMapCache);
-    },
-    /**
-     * ✅检查文件名
-     * @param directoryAndFileMapCache
-     * @param getKey
-     * @param mdName
-     * @returns {*}
-     */
-    checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName) {
-      return directoryAndFileMapCache[getKey].some(item => {
-        if (item.name === mdName) {
-          item.sync = true;
-          return true;
-        }
-        return false
-      });
-    },
-    /**
-     * ✅保存markdown文件到缓存
-     * @param content
-     * @param markdownName
-     */
-    createMarkdownFileToCache({content, mdName}) {
-      let directoryAndFileMapCache = this.getDirectoryAndFileMapFromCache();
-      const getPath = this.currentPath.replace(/\//g, '_');
-      const getKey = 'directoryAndFile_' + getPath;
-      if (!directoryAndFileMapCache.hasOwnProperty(getKey)) {
-        directoryAndFileMapCache[getKey] = [];
-      }
-      const mdExist = this.checkFilenameIsExist(directoryAndFileMapCache, getKey, mdName)
-      if (!mdExist) {
-        directoryAndFileMapCache[getKey].push({
-          "type": "file",
-          "path": this.currentPath,
-          "name": `${mdName}.md`,
-          "basename": `${mdName}.md`,
-          "sync": true,
-          "extension": "md",
-          "size": 16,
-        });
-      }
-      // 重新根据变动整理下目录列表
-      this.$refs.directoryOrFileDetail.handleDirectoryData(directoryAndFileMapCache[getKey]);
-      // 保存缓存信息
-      localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapCache));
-    },
-    /**
-     *  ✅修改目录刷新状态
-     * @param event
-     */
-    onRefreshStatusChange(event) {
-      this.isRefreshDirectory = event;
-    },
-    /**
-     * ✅同步当前目录的子文件/文件夹数量
-     */
-    setDirectoryTotal(count) {
-      this.totalCount = count;
-    },
 
-    /**
-     /**
-     * ✅从cache中过滤掉被移走的文件
-     * @param directoryAndFileMapCache
-     * @param fromKey
-     * @param filename
-     * @returns {*}
-     */
-    filterFileFromCache(directoryAndFileMapCache, fromKey, filename) {
-      return directoryAndFileMapCache[fromKey].filter(item => {
-        return item.basename !== filename;
-      });
+    // -- 切换目录 changeCurrentPath >>>>>>>>>>>> ------
+    changeCurrentPath(path) {
+      this.currentPath = path;
     },
-    /**
-     * 新建个文件对象
-     * @param toDir
-     * @param filename
-     * @returns {{path, extension: string, basename, size: number, name: string, type: string, sync: boolean}}
-     */
-    createNewFileObject(toDir, filename) {
-      return {
-        "type": "file",
-        "path": toDir,
-        "name": filename.substring(0, filename.lastIndexOf('.')),
-        "basename": filename,
-        "sync": true,
-        "extension": filename.substring(filename.lastIndexOf('.') + 1),
-        "size": 0,
-      };
-    },
-    /**
-     * ✅同步文件改动到cache
-     * @param fromDir
-     * @param toDir
-     * @param filename
-     * @param pasteMode  'moveFile', 'copyFile'
-     */
-    doMoveOrCopyFileItemToCache(fromDir, toDir, filename, pasteMode) {
-      console.log(fromDir, toDir, filename, pasteMode)
-      if (fromDir !== toDir) {
-        const fromPath = fromDir.replace(/\//g, '_');
-        const toPath = this.currentPath.replace(/\//g, '_');
-        // 获取cache obj
-        const fromKey = 'directoryAndFile_' + fromPath;
-        const toKey = 'directoryAndFile_' + toPath;
-        let directoryAndFileMapFromCache = this.getDirectoryAndFileMapFromCache();
-        const cacheKeyList = (Object.keys(directoryAndFileMapFromCache) || []);
-        if (cacheKeyList.includes(toKey)) {
-          directoryAndFileMapFromCache[toKey].push(this.createNewFileObject(toDir, filename));
-        }
-        if (pasteMode === 'moveFile') {
-          if (cacheKeyList.includes(fromKey)) {
-            directoryAndFileMapFromCache[fromKey] = this.filterFileFromCache(directoryAndFileMapFromCache, fromKey, filename);
-          }
-        }
-        this.directoryAndFileList = directoryAndFileMapFromCache[toKey];
-        localStorage.setItem('directoryAndFileMapCache', JSON.stringify(directoryAndFileMapFromCache));
-      }
-    },
-    // ✅同步文件改动到后端
-    async doMoveOrCopyFileItemToServer(fromDir, toDir, filename) {
-      await window.jianghuAxios({
-        data: {
-          appData: {
-            pageId: 'cloud_drive',
-            actionId: this.pasteMode === 'cut' ? 'moveFile' : 'copyFile',
-            actionData: {
-              fromDir,
-              toDir,
-              filename,
-            },
-          }
-        }
-      });
-    },
-    /**
-     * ✅粘贴文件
-     * @returns {Promise<void>}
-     */
-    async pasteItem() {
-      window.vtoast.loading({message: this.pasteMode === 'cut' ? '文件移动中' : '文件复制中', time: -1});
-      if (this.isRefreshDirectory) {
-        requestAnimationFrame(() => {
-          this.pasteItem();
-        })
-        return;
-      }
-      const fromDir = this.currentCopyPath.substring(0, this.currentCopyPath.lastIndexOf('/') + 1);
-      const toDir = this.currentPath;
-      const filename = this.currentCopyPath.substring(this.currentCopyPath.lastIndexOf('/') + 1);
-      this.currentCopyPath = null;
-      this.doMoveOrCopyFileItemToCache(fromDir, toDir, filename, this.pasteMode === 'cut' ? 'moveFile' : 'copyFile');
-      await this.doMoveOrCopyFileItemToServer(fromDir, toDir, filename);
-      window.vtoast.success(this.pasteMode === 'cut' ? '文件移动成功' : '文件复制成功');
-    },
+    // -- <<<<<<<<<<<< 切换目录 changeCurrentPath ------
+
+    // -- 文件操作 >>>>>>>>>>>> ------
     /**
      * ✅修改markdown文件
-     * @param content 新markdown文件内容
-     * @param path markdown文件路径
-     * @returns {Promise<void>}
+     * @param funObj 文件数据
      */
     async prepareUpdateMarkdown(funObj) {
       this.currentMarkdownItem = funObj;
@@ -467,7 +317,7 @@ new Vue({
      */
     cutItem(path) {
       this.currentCopyPath = path
-      this.pasteMode = 'cut'
+      this.currentPasteMode = 'cut'
       window.vtoast.success('<$ constantUiMap.btn.cut $>');
     },
     /**
@@ -476,17 +326,69 @@ new Vue({
      */
     copyItem(path) {
       this.currentCopyPath = path
-      this.pasteMode = 'copy'
+      this.currentPasteMode = 'copy'
       window.vtoast.success('<$ constantUiMap.btn.copied $>');
     },
+    // -- <<<<<<<<<<<< 文件操作 ------
 
-    /**
-     * ✅切换目录
-     * @param path
-     */
-    changeCurrentPath(path) {
-      this.currentPath = path;
-    }
+    // -- 粘贴文件 pasteItem >>>>>>>>>>>> ------
+    async preparePasteItem() {
+      this.pasteItemFromDir = this.currentCopyPath.substring(0, this.currentCopyPath.lastIndexOf('/') + 1);
+      this.pasteItemFilename = this.currentCopyPath.substring(this.currentCopyPath.lastIndexOf('/') + 1);
+    },
+    async doPasteItem() {
+      if (this.isRefreshDirectory) {
+        requestAnimationFrame(async() => {
+          if(this.currentPasteMode === 'cut'){
+            await this.doMoveItem();
+          }
+          if(this.currentPasteMode === 'copy'){
+            await this.doCopyItem();
+          }
+        })
+      }
+    },
+    async doMoveItem() {
+      window.vtoast.loading({message: '文件移动中', time: -1});
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'moveFile',
+            actionData: {
+              fromDir,
+              filename,
+              toDir: this.currentPath,
+            },
+          }
+        }
+      });
+      window.vtoast.success('文件移动成功');
+    },
+    async doCopyItem() {
+      window.vtoast.loading({message: '文件复制中', time: -1});
+      await window.jianghuAxios({
+        data: {
+          appData: {
+            pageId: 'cloud_drive',
+            actionId: 'copyFile',
+            actionData: {
+              fromDir,
+              filename,
+              toDir: this.currentPath,
+            },
+          }
+        }
+      });
+      window.vtoast.success('文件复制成功');
+    },
+    async clearPasteItem() {
+      this.currentCopyPath = null;
+      this.currentPasteMode = null;
+      this.pasteItemFromDir = null;
+      this.pasteItemFilename = null;
+    },
+    // -- <<<<<<<<<<<< 粘贴文件 pasteItem ------    
   }
 })
 </script>
