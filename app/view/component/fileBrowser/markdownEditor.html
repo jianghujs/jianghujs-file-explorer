@@ -1,14 +1,17 @@
 <template id="markdown-editor">
   <div>
+    <!-- 新建文档按钮 >>>>>>>>>>>>> --> 
     <v-btn class="ml-2" small v-if="currentPath" depressed @click="openMarkdownEditDialog" title="Upload Files" :disabled="currentPath === '/'">
       <v-icon class="mr-1" small>mdi-text-box-plus</v-icon>
       新建文档
     </v-btn>
-    <!--✅文档编辑器弹窗-->
+    <!-- <<<<<<<<<<<<< 新建文档按钮 -->
+
+    <!-- 文档编辑器弹窗 >>>>>>>>>>>>> --> 
     <v-dialog v-model="isMarkdownEditDialogShow" persistent>
       <v-card flat style="height: 70vh" class="d-flex flex-column">
+        <!--✅弹窗标题栏-->
         <div style="height: 48px">
-          <!--✅弹窗标题栏-->
           <v-app-bar color="primary" dense dark class="pl-4">
             <v-icon>mdi-note-edit</v-icon>
             <v-toolbar-title class="ml-3">
@@ -23,9 +26,11 @@
             </v-btn>
           </v-app-bar>
         </div>
-        <!--✅文档容器>>>>>>>>>>>>>-->
+
+        <!--✅文档容器-->
         <div id="editorMdContainer" v-if="isMarkdownEditDialogShow" style="flex: 1"></div>
-        <!--✅<<<<<<<<<<<< 文档容器-->
+
+        <!--✅操作按钮-->
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="success darken-1" text @click="checkEditStatusAndClose">
@@ -37,7 +42,9 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-    <!--✅文档命名弹窗-->
+    <!-- <<<<<<<<<<<<< 文档编辑器弹窗 -->
+
+    <!-- 文档命名弹窗 >>>>>>>>>>>>> --> 
     <v-dialog v-model="isNameDialogShow"
               persistent
               hide-overlay
@@ -47,22 +54,23 @@
         <v-progress-circular indeterminate :size="40" color="primary"></v-progress-circular>
         <div style="text-align: center">保存中</div>
       </div>
+
       <!--✅输入文档名输入框-->
       <v-card v-else>
         <v-form>
+          <!-- 标题 -->
           <v-card-title class="px-8">
             <span class="text-h5">请输入保存文档名</span>
           </v-card-title>
+
+          <!-- 输入框 -->
           <v-card-text>
             <v-container>
-              <v-text-field
-                  label="请输入保存文档名"
-                  v-model="mdName"
-                  :rules="requireRules"
-                  required
-              ></v-text-field>
+              <v-text-field color="success" v-model="mdName" class="jh-v-input" dense filled single-line :rules="requireRules"></v-text-field>
             </v-container>
           </v-card-text>
+
+          <!-- 操作 -->
           <v-card-actions>
             <v-spacer></v-spacer>
             <v-btn color="" text @click="cancelMdEdit">
@@ -75,11 +83,15 @@
         </v-form>
       </v-card>
     </v-dialog>
+    <!-- <<<<<<<<<<<<< 文档命名弹窗 -->
   </div>
 </template>
+
+<!-- 加载页面静态资源 >>>>>>>>>>>>> -->
 <link rel="stylesheet" href="/<$ ctx.app.config.appId $>/public/plugin/editor.md/css/editormd.min.css"/>
 <script src="/<$ ctx.app.config.appId $>/public/lib/jquery/jquery.min.js"></script>
 <script src="/<$ ctx.app.config.appId $>/public/plugin/editor.md/editormd.js"></script>
+<!-- <<<<<<<<<<<<< 加载页面静态资源 -->
 
 <script>
 Vue.component("markdown-editor", {

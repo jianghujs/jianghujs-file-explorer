@@ -88,6 +88,7 @@
                 <span>同步中</span>
               </template>
               <template v-else>
+
                 <!--✅文档编辑-->
                 <v-tooltip top v-if="item.extension === 'md'">
                   <template v-slot:activator="{ on, attrs }">
@@ -98,6 +99,7 @@
                   </template>
                   <span>编辑文档</span>
                 </v-tooltip>
+
                 <!--✅剪切-->
                 <v-tooltip top v-if="roleId === 'teacher'">
                   <template v-slot:activator="{ on, attrs }">
@@ -107,6 +109,7 @@
                   </template>
                   <span>剪切</span>
                 </v-tooltip>
+
                 <!--✅重命名-->
                 <v-menu v-model="item.newFolderPopper" :close-on-content-click="false" :nudge-width="200" offset-y>
                   <template v-slot:activator="{ on }">
@@ -119,6 +122,7 @@
                       </v-tooltip>
                     </v-btn>
                   </template>
+
                   <!--✅重命名弹窗-->
                   <v-card>
                     <v-card-text>
@@ -133,6 +137,7 @@
                     </v-card-actions>
                   </v-card>
                 </v-menu>
+
                 <!--✅复制-->
                 <v-tooltip top>
                   <template v-slot:activator="{ on, attrs }">
@@ -142,6 +147,7 @@
                   </template>
                   <span>复制</span>
                 </v-tooltip>
+
                 <!--✅删除-->
                 <v-tooltip top v-if="roleId === 'teacher'">
                   <template v-slot:activator="{ on, attrs }">
@@ -154,6 +160,7 @@
                 </v-tooltip>
               </template>
             </div>
+
             <div v-else class="text-right">
               <!--✅回收站事件：剪切-->
               <v-tooltip top v-if="roleId === 'teacher'">
@@ -167,6 +174,7 @@
             </div>
           </template>
         </template>
+
         <!--✅表格底部右侧功能按钮-->
         <template v-slot:footer.prepend>
           <v-menu top offset-y :close-on-content-click="false">
@@ -229,7 +237,6 @@ Vue.component("directory-list", {
   methods: {
     async doUiAction(uiActionId, uiActionData) {
       switch (uiActionId) {
-        // item 操作
         case 'openDirectoryOrFile':
           this.openDirectoryOrFile(uiActionData);
           break;
@@ -248,22 +255,19 @@ Vue.component("directory-list", {
         case 'doRenameItem':
           await this.prepareCreateFileDate(uiActionData);
           await this.doRenameItem(uiActionData);
-          this.closeRenameDialog(uiActionData);
+          await this.closeRenameDialog(uiActionData);
+          await this.refreshData();
           break;
         case 'deleteItem':
           await this.prepareDeleteItem(uiActionData);
           await this.confirmDeleteItemDialog();
           await this.doDeleteItem();
+          await this.refreshData();
           break;
       }
     },
-    // ------ 目录数据 --------------
-    /**
-     * ✅修复table表格高度
-     */
-    fixedTableHeight() {
-      requestAnimationFrame(resetTableMaxHeight)
-    },
+
+    // ---------- 获取数据 uiAction >>>>>>>>>> --------
     /**
      * ✅获取markdown文件的内容
      * @param path
@@ -283,14 +287,41 @@ Vue.component("directory-list", {
       })).data.appData.resultData.mdContent;
       return this.currentMarkdownContent;
     },
-    // ------------------------- 目录的数据分析处理 >>>>>>>>>> -------------------------
+    // ---------- <<<<<<<<<<< 获取数据 uiAction  --------
 
-    // ------------------------- 目录下item项 操作 >>>>>>>>>> -------------------------
+    // ---------- 文件操作 uiAction >>>>>>>>>> --------
+    /**
+     * 文档编辑
+     * @param item
+     */
+    async editMarkdownItem(item) {
+      this.currentMarkdownPath = item.path;
+      await this.getMarkdownDetail(item.path);
+      this.currentMarkdownPath = null;
+      this.$emit("edit-markdown-item", {path: item.path, name: item.basename, content: this.currentMarkdownContent});
+    },
+    /**
+     * 剪切文件
+     * @param item
+     */
+    cutItem(item) {
+      this.$emit("cut-item", item.path);
+    },
+    /**
+     * 复制文件
+     * @param item
+     */
+    copyItem(item) {
+      this.$emit("copy-item", item.path);
+    },
+    // ---------- <<<<<<<<<<< 文件操作 uiAction  --------
+
+    // ---------- 删除数据 uiAction >>>>>>>>>> --------
     /**
      * 开始删除
      * @param funObj
      */
-    async prepareDeleteItem(funObj) {
+     async prepareDeleteItem(funObj) {
       this.deleteItem = _.cloneDeep(funObj);
       this.currentDeleteItemPath = this.deleteItem.path;
     },
@@ -316,37 +347,15 @@ Vue.component("directory-list", {
       })
       this.deleteItem = null;
       this.currentDeleteItemPath = null;
-      this.$emit("file-deleted");
     },
-    /**
-     * 文档编辑
-     * @param item
-     */
-    async editMarkdownItem(item) {
-      this.currentMarkdownPath = item.path;
-      await this.getMarkdownDetail(item.path);
-      this.currentMarkdownPath = null;
-      this.$emit("edit-markdown-item", {path: item.path, name: item.basename, content: this.currentMarkdownContent});
-    },
-    /**
-     * 剪切文件
-     * @param item
-     */
-    cutItem(item) {
-      this.$emit("cut-item", item.path);
-    },
-    /**
-     * 复制文件
-     * @param item
-     */
-    copyItem(item) {
-      this.$emit("copy-item", item.path);
-    },
+    // ---------- <<<<<<<<<<< 删除数据 uiAction  --------
+
+    // ---------- 重命名 uiAction >>>>>>>>>> --------
     /**
      * 打开重命名文件mini弹窗
      * @param item
      */
-    startRenameItem(item) {
+     startRenameItem(item) {
       item.newFilename = item.basename;
     },
     /**
@@ -390,8 +399,9 @@ Vue.component("directory-list", {
     closeRenameDialog(item) {
       item.newFolderPopper = false;
     },
-    // ------------------------- <<<<<<<<<<<<< 目录下item项 操作 -------------------------
-    // ------ 公共方法 --------------
+    // ---------- <<<<<<<<<<< 重命名 uiAction  --------
+
+    // ---------- 公共方法 uiAction >>>>>>>>>> --------
     /**
      * 检查当前文件是否图片
      * @param filename
@@ -421,6 +431,11 @@ Vue.component("directory-list", {
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
     },
+    /* 刷新数据 */
+    refreshData(){
+      this.$emit("get-data");
+    },
+    // ---------- <<<<<<<<<<< 公共方法 uiAction  --------
   },
 });
 </script>

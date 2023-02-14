@@ -1,11 +1,15 @@
-<template id="fileBrowser-upload">
+<template id="file-upload">
   <div>
-    <input v-show="false" style="opacity: 0; position: absolute; top: -200px" ref="inputUpload" type="file" multiple
-           @change="addNewFile"/>
-    <v-btn small v-if="currentPath" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="currentPath === '/'">
+    <!-- 上传文件按钮 >>>>>>>>>>>>> -->        
+    <v-btn small v-if="currentPath" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="currentPath === '/'" class="ml-2">
       <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
       <$ constantUiMap.btn.upload $>
     </v-btn>
+    <input v-show="false" style="opacity: 0; position: absolute; top: -200px" ref="inputUpload" type="file" multiple
+    @change="addNewFile"/>
+    <!-- <<<<<<<<<<<<< 上传文件按钮 -->
+
+    <!-- 上传文件弹窗 >>>>>>>>>>>>> -->
     <v-overlay v-if="isUploadDialogShown" style="z-index: 60;">
       <v-card flat light class="mx-auto" :loading="loading" style="width: 600px;">
         <!-- ✅header -->
@@ -19,6 +23,8 @@
             </v-btn>
           </v-toolbar-items>
         </v-toolbar>
+        
+        <!-- ✅分隔线 -->
         <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
 
         <!-- ✅按钮区 -->
@@ -73,8 +79,10 @@
           暂无文件~
         </v-card-text>
 
-        <!-- ✅footer -->
+        <!-- ✅分隔线 -->
         <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
+
+        <!-- ✅footer -->
         <v-card-text class="py-3 d-flex justify-space-between" style="color:#A1A5B7;">
           <div>
             <span><$ constantUiMap.btn.uploadTo $>:</span>
@@ -87,15 +95,17 @@
         </v-card-text>
       </v-card>
     </v-overlay>
+    <!-- <<<<<<<<<<<<< 上传文件弹窗 -->
+    
   </div>
 </template>
 
 <script>
 const imageMimeTypes = ["image/png", "image/jpeg"];
-Vue.component("file-browser-upload", {
+Vue.component("file-upload", {
   vuetify: new Vuetify(),
-  name: 'file-browser-upload',
-  template: '#fileBrowser-upload',
+  name: 'file-upload',
+  template: '#file-upload',
   props: {
     currentPath: String,
     fileIconList: Object,

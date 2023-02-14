@@ -493,7 +493,7 @@
     <!-- 帮助页抽屉 >>>>>>>>>>>>> -->
     <v-navigation-drawer v-model="isHelpPageDrawerShown" fixed temporary right width="80%" hide-overlay
                          class="elevation-24">
-      <iframe style="border: 0" :src="`/${appInfo.appId}/pageDoc#3.doUiAction.md`" width="100%"
+      <iframe style="border: 0" :src="`/${appInfo.appId}/pageDoc#2.fileExplorerMini.md`" width="100%"
               height="100%"></iframe>
 
       <v-btn elevation="0" color="success" fab absolute top left small tile class="drawer-close-float-btn"
@@ -521,7 +521,7 @@
 {% block vueScript %}
 
 <!-- 加载页面组件 >>>>>>>>>>>>> -->
-{% include 'common/fixedTableHeightV4.html' %}
+{% include 'common/jianghuJs/fixedTableHeightV4.html' %}
 <!-- <<<<<<<<<<<<< 加载页面组件 -->
 
 <script type="module">

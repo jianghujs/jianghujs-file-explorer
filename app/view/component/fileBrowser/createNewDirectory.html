@@ -1,15 +1,17 @@
 <template id="create-new-directory">
-  <!-- ✅创建文件夹 -->
+  <!-- 创建文件夹 >>>>>>>>>>>>> -->   
   <v-menu v-if="currentPath" v-model="isNewFolderDialogShown" :close-on-content-click="false" :nudge-width="200"
           offset-y>
+    <!-- ✅创建文件夹按钮 -->     
     <template v-slot:activator="{ on }">
       <span>
-        <v-btn small v-if="currentPath" depressed color="success" v-on="on" class="ml-1" :disabled="currentPath === '/'">
+        <v-btn small v-if="currentPath" depressed color="success" v-on="on" :disabled="currentPath === '/'">
             <v-icon class="mr-1" small>mdi-folder-multiple-plus</v-icon>
             <$ constantUiMap.btn.createFolder $>
         </v-btn>
       </span>
     </template>
+
     <!--✅创建文件夹弹窗-->
     <v-card>
       <v-card-text class="pb-0">
@@ -24,7 +26,9 @@
         </v-btn>
       </v-card-actions>
     </v-card>
+    
   </v-menu>
+  <!-- <<<<<<<<<<<<< 创建文件夹 -->
 </template>
 <script>
 Vue.component("create-new-directory", {
