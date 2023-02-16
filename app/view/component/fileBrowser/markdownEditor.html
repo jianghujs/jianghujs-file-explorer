@@ -8,35 +8,31 @@
     <!-- <<<<<<<<<<<<< 新建文档按钮 -->
 
     <!-- 文档编辑器弹窗 >>>>>>>>>>>>> --> 
-    <v-dialog v-model="isMarkdownEditDialogShow" persistent>
-      <v-card flat style="height: 70vh" class="d-flex flex-column">
+    <v-dialog v-model="isMarkdownEditDialogShow" persistent content-class="jh-dialog-mobile-fullscreen">
+      <v-card flat class="markdown-wrapper">
         <!--✅弹窗标题栏-->
-        <div style="height: 48px">
-          <v-app-bar color="primary" dense dark class="pl-4">
-            <v-icon>mdi-note-edit</v-icon>
-            <v-toolbar-title class="ml-3">
+        <div>
+          <v-app-bar dense class="px-4">
+            <v-icon size="18">mdi-file-document-edit-outline</v-icon>
+            <v-toolbar-title class="font-weight-medium text-subtitle-1 ml-1">
               {{ mdName || "新建文档" }}
-              <v-progress-circular v-if="saveIng" indeterminate :size="20" color="white"></v-progress-circular>
+              <v-progress-circular v-if="isSaveing" indeterminate :size="20" color="success"></v-progress-circular>
             </v-toolbar-title>
             <v-spacer></v-spacer>
-            <v-btn class="mx-0 elevation-0" color="success" fab dark small @click="checkEditStatusAndClose">
-              <v-icon color="white" size="30">
-                mdi-close
-              </v-icon>
+            <v-btn class="elevation-0" fab x-small @click="checkEditStatusAndClose">
+              <v-icon small>mdi-close</v-icon>
             </v-btn>
           </v-app-bar>
         </div>
-
         <!--✅文档容器-->
-        <div id="editorMdContainer" v-if="isMarkdownEditDialogShow" style="flex: 1"></div>
-
+        <div id="editorMdContainer" class="editorMdContainer" v-if="isMarkdownEditDialogShow"></div>
         <!--✅操作按钮-->
-        <v-card-actions>
+        <v-card-actions class="pa-4 pt-1">
           <v-spacer></v-spacer>
-          <v-btn color="success darken-1" text @click="checkEditStatusAndClose">
+          <v-btn @click="checkEditStatusAndClose" small>
             取消
           </v-btn>
-          <v-btn color="success" @click="saveMarkdownContent">
+          <v-btn color="success" @click="saveMarkdownContent" small>
             保存
           </v-btn>
         </v-card-actions>
@@ -46,37 +42,35 @@
 
     <!-- 文档命名弹窗 >>>>>>>>>>>>> --> 
     <v-dialog v-model="isNameDialogShow"
-              persistent
-              hide-overlay
-              :max-width="saveIng ? '100px' : '600px'">
+      persistent
+      hide-overlay
+      :max-width="isSaveing ? '100px' : '600px'">
       <!--✅文档保存中-->
-      <div v-if="saveIng" style="height: 100px; width: 100px; text-align: center; padding: 20px; background-color: #ffffff">
+      <div v-if="isSaveing" style="height: 100px; width: 100px; text-align: center; padding: 20px; background-color: #ffffff">
         <v-progress-circular indeterminate :size="40" color="primary"></v-progress-circular>
         <div style="text-align: center">保存中</div>
       </div>
 
-      <!--✅输入文档名输入框-->
+      <!--✅输入框-->
       <v-card v-else>
         <v-form>
-          <!-- 标题 -->
-          <v-card-title class="px-8">
-            <span class="text-h5">请输入保存文档名</span>
+          <!--✅标题-->
+          <v-card-title class="px-4">
+            <span class="font-weight-medium  text-subtitle-1">请输入文档名称</span>
           </v-card-title>
-
-          <!-- 输入框 -->
-          <v-card-text>
-            <v-container>
+          <!--✅主内容-->
+          <v-card-text class="pt-4">
+            <v-container class="pa-0">
               <v-text-field color="success" v-model="mdName" class="jh-v-input" dense filled single-line :rules="requireRules"></v-text-field>
             </v-container>
           </v-card-text>
-
-          <!-- 操作 -->
-          <v-card-actions>
+          <!--✅操作按钮-->
+          <v-card-actions class="pa-4">
             <v-spacer></v-spacer>
-            <v-btn color="" text @click="cancelMdEdit">
+            <v-btn @click="cancelMdEdit" small>
               取消
             </v-btn>
-            <v-btn color="success" text @click="saveMarkdownContent">
+            <v-btn color="success" @click="saveMarkdownContent" small>
               保存
             </v-btn>
           </v-card-actions>
@@ -112,7 +106,7 @@ Vue.component("markdown-editor", {
     markdownContent: null,
     mdName: null,
     isNameDialogShow: false,
-    saveIng: false,
+    isSaveing: false,
     currentMarkdownContent: null,
     isMarkdownEditDialogShow: false
   }),
@@ -149,7 +143,7 @@ Vue.component("markdown-editor", {
     cancelMdEdit() {
       this.isMarkdownEditDialogShow = false;
       this.isNameDialogShow = false;
-      this.saveIng = false;
+      this.isSaveing = false;
       this.mdName = null;
       this.markdownContent = null;
     },
@@ -163,7 +157,7 @@ Vue.component("markdown-editor", {
     saveMarkdownContent() {
       if (!_.isEmpty(this.mdName)) {
         this.isNameDialogShow = true;
-        this.saveIng = true;
+        this.isSaveing = true;
         const mdName = this.mdName.replace('.md', '');
         if(!this.markdownContent && this.currentMarkdownContent) {
           this.markdownContent = this.currentMarkdownContent;
@@ -194,7 +188,7 @@ Vue.component("markdown-editor", {
       window.vtoast.success("文档保存成功");
       this.$emit("refresh-directory");
       this.isNameDialogShow = false;
-      this.saveIng = false;
+      this.isSaveing = false;
       this.isMarkdownEditDialogShow = false;
     },
     /**
@@ -242,47 +236,72 @@ Vue.component("markdown-editor", {
 </script>
 
 <style scoped>
-body {
-  overflow: auto;
-}
+  body {
+    overflow: auto;
+  }
 
-.v-card {
-  height: unset;
-}
+  .v-card {
+    height: unset;
+  }
 
-:root {
-  --border-color: #eff2f5;
-}
+  :root {
+    --border-color: #eff2f5;
+  }
 
-.v-dialog--fullscreen .v-sheet {
-  height: auto;
-  position: relative;
-  background: #fff;
-  display: block;
-}
+  .v-dialog--fullscreen .v-sheet {
+    height: auto;
+    position: relative;
+    background: #fff;
+    display: block;
+  }
 
-.editormd, .CodeMirror-gutters, .editormd-toolbar, .editormd .CodeMirror, .editormd-menu > li.divider, .editormd-menu > li > a:hover, .editormd-menu > li > a.active {
-  border-color: var(--border-color) !important;
-}
+  /* ---------- markdown >>>>>>>>>> -------- */
+  .editormd,
+  .CodeMirror-gutters,
+  .editormd-toolbar,
+  .editormd .CodeMirror,
+  .editormd-menu>li.divider,
+  .editormd-menu>li>a:hover,
+  .editormd-menu>li>a.active {
+    border-color: var(--border-color) !important;
+  }
 
-.CodeMirror-gutter {
-  background-color: #fff;
-}
+  .CodeMirror-gutter {
+    background-color: #fff;
+  }
 
-.CodeMirror-scroll {
-  overflow-x: hidden !important;
-}
+  .CodeMirror-scroll {
+    overflow-x: hidden !important;
+  }
 
-.editormd-dialog-close {
-  color: #3F4254 !important;
-}
+  .editormd-dialog-close {
+    color: #3F4254 !important;
+  }
 
-.editormd-preview-container ol.linenums li, .editormd-html-preview ol.linenums li {
-  list-style-type: none;
-}
+  .editormd-preview-container ol.linenums li,
+  .editormd-html-preview ol.linenums li {
+    list-style-type: none;
+  }
 
-.editormd-preview-container ol.linenums, .editormd-html-preview ol.linenums {
-  color: #999;
-  padding-left: 0;
-}
+  .editormd-preview-container ol.linenums,
+  .editormd-html-preview ol.linenums {
+    color: #999;
+    padding-left: 0;
+  }
+
+  .editorMdContainer{
+    height: calc(100% - 120px) !important;
+  }
+  .editormd-menu > li > a{
+    font-size: 14px;
+  }
+  .markdown-wrapper{
+    height: 80vh;
+  }
+  @media screen and (max-width: 500px) {
+    .markdown-wrapper{
+      height: 100vh;
+    }
+  }
+  /* ---------- <<<<<<<<<<< markdown -------- */
 </style>
