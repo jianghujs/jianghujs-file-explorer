@@ -1,36 +1,32 @@
 <template id="file-browser">
+  <!-- fileBrowser >>>>>>>>>>>>> -->
   <v-card class="rounded-lg pa-4 pb-0">
     <!-- 操作按钮 >>>>>>>>>>>>> -->
-    <v-row class="ma-0 pa-0 mb-2">
+    <v-row class="ma-0 pa-0 mb-2" v-if="currentPathIsDir">
       <!-- ✅新建目录 -->
       <create-new-directory
         :current-path="currentPath"
         @refresh-directory="doUiAction('getDirectoryData')">
       </create-new-directory>
-
       <!--✅上传文件 -->
       <file-upload
         :current-path="currentPath"
         :file-icon-list="fileIconList"
         @refresh-directory="doUiAction('getDirectoryData')"></file-upload>
-
       <!--✅新建markdown -->
       <markdown-editor
         :current-path="currentPath"
         :current-markdown-item="currentMarkdownItem"
         @refresh-directory="doUiAction('getDirectoryData')">
       </markdown-editor>
-
       <!-- ✅粘贴 -->
       <v-btn small v-if="currentPath && currentCopyPath" depressed @click="doUiAction('pasteItem')" class="ml-2"
         title="<$ constantUiMap.btn.paste $>" :disabled="currentPath === '/'">
         <v-icon class="mr-1" small>mdi-file-replace</v-icon>
         <$ constantUiMap.btn.paste $>
       </v-btn>
-
       <!-- ✅分隔 -->
       <v-spacer></v-spacer>
-
       <!--✅搜索 -->
       <v-col cols="12" xs="8" sm="4" md="3" xl="2" class="pa-0">
         <v-text-field color="success" v-model="tableSearchText" prefix="搜索：" class="jh-v-input" dense filled
@@ -44,28 +40,28 @@
       <!-- ✅路径面包屑栏  -->
       <breadcrumbs
         :current-path="currentPath"
+        :current-path-is-dir="currentPathIsDir"
         @change-path="doUiAction('changeCurrentPath', $event)">
       </breadcrumbs>
-
       <!-- ✅分隔 -->
       <v-spacer></v-spacer>
-
-      <!--✅目录下文件/文件夹总数 -->
-      <v-chip color="green" text-color="white" small>
-        {{ totalCount }} items
-      </v-chip>
-
-      <!-- ✅数据刷新状态 -->
-      <v-btn icon @click="doUiAction('getDirectoryData')" small>
-        <v-progress-circular indeterminate v-if="isRefreshDirectory" :size="20" color="primary"></v-progress-circular>
-        <v-icon v-else>mdi-refresh</v-icon>
-      </v-btn>
+      <template v-if="currentPathIsDir">
+        <!--✅目录下文件/文件夹总数 -->
+        <v-chip color="green" text-color="white" small>
+          {{ totalCount }} items
+        </v-chip>
+        <!-- ✅数据刷新状态 -->
+        <v-btn icon @click="doUiAction('getDirectoryData')" small>
+          <v-progress-circular indeterminate v-if="isRefreshDirectory" :size="20" color="primary"></v-progress-circular>
+          <v-icon v-else>mdi-refresh</v-icon>
+        </v-btn>
+      </template>
     </v-row>
     <!-- <<<<<<<<<<<<< 路径导航栏 -->
 
     <!-- 主内容 >>>>>>>>>>>>> -->
     <v-row class="ma-0">
-      <!--✅目录列表-->
+      <!--✅文件列表-->
       <directory-list
         v-if="currentPathIsDir"
         ref="directoryOrFileDetail"
@@ -82,13 +78,14 @@
         v-on:copy-item="doUiAction('copyItem', $event)"
         v-on:cut-item="doUiAction('cutItem', $event)"
         v-on:edit-markdown-item="doUiAction('startUpdateMarkdown', $event)"
-        v-on:get-data="doUiAction('getDirectoryData')"></directory-list>
-
+        v-on:get-data="doUiAction('getDirectoryData')">
+      </directory-list>
       <!--✅文件详情-->
       <file-detail v-else :current-path="currentPath"></file-detail>
     </v-row>
     <!-- <<<<<<<<<<<<< 主内容 -->
   </v-card>
+  <!-- <<<<<<<<<<<<< fileBrowser -->
 </template>
 
 <!-- 加载页面组件 >>>>>>>>>>>>> -->

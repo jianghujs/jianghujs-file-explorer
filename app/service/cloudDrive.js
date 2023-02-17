@@ -335,7 +335,8 @@ class CloudDriveService extends Service {
     const { userInfo } = this.ctx;
     const { userId } = userInfo;
     const targetPath = nodePath.join(cloudDriveDir, path);
-    const recycleBackupsPath = nodePath.join(targetPath, '_recycle', `${+new Date()}_${userId}_${name}.md`);
+    const groupStorage = path.substring(1, path.indexOf('/', 1));
+    const recycleBackupsPath = nodePath.join(cloudDriveDir, groupStorage, '_recycle', `${+new Date()}_${userId}_${name}.md`);
     const mdFile = nodePath.join(targetPath, `/${name}.md`);
     // 保留一份备份在recycle
     if (await exists(mdFile)) {
