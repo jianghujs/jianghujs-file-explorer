@@ -8,7 +8,7 @@
     "framework": "@jianghujs/jianghu"
   },
   "dependencies": {
-    "@jianghujs/jianghu": "4.0.16",
+    "@jianghujs/jianghu": "4.0.17",
     "egg": "^2.15.1",
     "egg-scripts": "^2.11.0"
   },
@@ -27,7 +27,7 @@
   "scripts": {
     "start": "egg-scripts start --daemon --port=7002 --title=jianghujs-file-explorer",
     "stop": "egg-scripts stop --title=jianghujs-file-explorer",
-    "dev": "egg-bin dev --port=7002",
+    "dev": "egg-bin dev --port=7006",
     "debug": "egg-bin debug",
     "jianghuConfigImportData": "jianghu jianghuConfigImportData",
     "jianghuConfigDumpData": "jianghu jianghuConfigDumpData",
