@@ -1,6 +1,6 @@
 <template id="directory-list">
   <!-- 文件列表 >>>>>>>>>>>>> -->
-  <v-card>
+  <v-card flat>
     <v-card-text class="pa-0">
       <v-data-table
         :headers="headers"
@@ -60,7 +60,7 @@
             <v-tooltip top v-if="item.path.indexOf('/_recycle/') === -1 && roleId === 'teacher'">
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
-                  <v-progress-circular v-if="currentDeleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                  <v-progress-circular v-if="deleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                   <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
                 </v-btn>
               </template>
@@ -89,19 +89,18 @@
                 <v-progress-circular indeterminate :size="18" color="primary"></v-progress-circular>
                 <span>同步中</span>
               </template>
-
+              <!-- ✅操作 -->
               <template v-else>
                 <!--✅文档编辑-->
                 <v-tooltip top v-if="item.extension === 'md'">
                   <template v-slot:activator="{ on, attrs }">
                     <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('editMarkdownItem', item)">
-                      <v-progress-circular v-if="currentMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                      <v-progress-circular v-if="editMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                       <v-icon v-else color="grey lighten-1" style="font-size: 20px;">mdi-text-box-edit-outline</v-icon>
                     </v-btn>
                   </template>
                   <span>编辑文档</span>
                 </v-tooltip>
-
                 <!--✅剪切-->
                 <v-tooltip top v-if="roleId === 'teacher'">
                   <template v-slot:activator="{ on, attrs }">
@@ -111,11 +110,10 @@
                   </template>
                   <span>剪切</span>
                 </v-tooltip>
-
                 <!--✅重命名-->
-                <v-menu v-model="item.newFolderPopper" :close-on-content-click="false" :nudge-width="200" offset-y>
+                <v-menu :value="isRenameFileMenuShown && renameFileItemPath === item.path" :close-on-content-click="false" :nudge-width="200" offset-y>
                   <template v-slot:activator="{ on }">
-                    <v-btn v-if="currentPath" icon v-on="on" @click="doUiAction('startRenameItem', item)">
+                    <v-btn icon v-on="on" @click="doUiAction('startRenameFile', item)">
                       <v-tooltip top>
                         <template v-slot:activator="{ on, attrs }">
                           <v-icon color="grey lighten-1" v-on="on" style="font-size: 20px;">mdi-rename-box</v-icon>
@@ -124,22 +122,20 @@
                       </v-tooltip>
                     </v-btn>
                   </template>
-
                   <!--✅重命名弹窗-->
                   <v-card>
                     <v-card-text>
-                      <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="item.newFilename" hide-details color="success" dense filled single-line></v-text-field>
+                      <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="renameFileItemNewName" hide-details color="success" class="jh-v-input" dense filled single-line></v-text-field>
                     </v-card-text>
-                    <v-card-actions>
-                      <div class="flex-grow-1"></div>
-                      <v-btn @click="item.newFolderPopper = false" small depressed><$ constantUiMap.btn.cancel $></v-btn>
-                      <v-btn small color="success" :disabled="!item.newFilename" depressed @click="doUiAction('doRenameItem', item)"><$
-                        constantUiMap.btn.rename $>
+                    <v-card-actions class="pa-4 pt-0">
+                      <v-spacer></v-spacer>
+                      <v-btn @click="closeRenameFileMenu" small depressed><$ constantUiMap.btn.cancel $></v-btn>
+                      <v-btn small depressed color="success" :disabled="!renameFileItemNewName" @click="doUiAction('renameFile')">
+                        <$ constantUiMap.btn.rename $>
                       </v-btn>
                     </v-card-actions>
                   </v-card>
                 </v-menu>
-
                 <!--✅复制-->
                 <v-tooltip top>
                   <template v-slot:activator="{ on, attrs }">
@@ -149,12 +145,11 @@
                   </template>
                   <span>复制</span>
                 </v-tooltip>
-
                 <!--✅删除-->
                 <v-tooltip top v-if="roleId === 'teacher'">
                   <template v-slot:activator="{ on, attrs }">
                     <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
-                      <v-progress-circular v-if="currentDeleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                      <v-progress-circular v-if="deleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
                       <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
                     </v-btn>
                   </template>
@@ -208,19 +203,28 @@
     },
     data() {
       return {
-        currentMarkdownPath: null,
+        // table
         isTableZebraLineShown: true,
-        currentDeleteItemPath: null,
-        currentMarkdownContent: null,
         headers: [
           { text: '文件名', align: 'start', value: 'name', width: '40%' },
           { text: '大小', value: 'size', width: '20%' },
           { text: '更新时间', value: 'mtime', width: '20%' },
           { text: '', value: 'action', sortable: false }
         ],
-        dayjs: dayjs,
-        // 待删除文件路径
-        deleteItem: null
+
+        // 删除文件
+        deleteItem: {},
+        deleteItemPath: null,
+
+        // 重命名文件
+        isRenameFileMenuShown: false,
+        renameFileItemPath: null,
+        renameFileItemNewName: null,
+
+        //编辑文档
+        editMarkdownPath: null,
+        editMarkdownName: null,
+        editMarkdownContent: null,
       };
     },
     async created() {
@@ -232,7 +236,10 @@
             this.openDirectoryOrFile(uiActionData);
             break;
           case 'editMarkdownItem':
-            await this.editMarkdownItem(uiActionData);
+            await this.prepareEditMarkdownData(uiActionData);
+            await this.getMarkdownContent();
+            await this.doEditMarkdownItem();
+            await this.clearEditMarkdownItem();
             break;
           case 'cutItem':
             this.cutItem(uiActionData);
@@ -240,134 +247,88 @@
           case 'copyItem':
             this.copyItem(uiActionData);
             break;
-          case 'startRenameItem':
-            this.startRenameItem(uiActionData);
+          case 'startRenameFile':
+            await this.prepareRenameFileData(uiActionData);
+            await this.openRenameFileMenu();
             break;
-          case 'doRenameItem':
-            await this.prepareCreateFileDate(uiActionData);
-            await this.doRenameItem(uiActionData);
-            await this.closeRenameDialog(uiActionData);
-            await this.refreshData();
+          case 'renameFile':
+            await this.prepareRenameFileValidate(uiActionData);
+            await this.doRenameFile();
+            await this.closeRenameFileMenu();
+            await this.refreshDirectory();
             break;
           case 'deleteItem':
-            await this.prepareDeleteItem(uiActionData);
+            await this.prepareDeleteData(uiActionData);
             await this.confirmDeleteItemDialog();
+            await this.prepareDoDeleteItem();
             await this.doDeleteItem();
-            await this.refreshData();
+            await this.clearDeleteItem();
+            await this.refreshDirectory();
             break;
         }
       },
 
-      // ---------- 获取数据 uiAction >>>>>>>>>> --------
-      /**
-       * ✅获取markdown文件的内容
-       * @param path
-       * @returns {Promise<void>}
-       */
-      async getMarkdownDetail(path) {
-        this.currentMarkdownContent = (await window.jianghuAxios({
+      // ---------- 打开目录或文件 uiAction >>>>>>>>>> --------
+      openDirectoryOrFile(path) {
+        this.$emit("path-changed", path);
+      },
+      // ---------- <<<<<<<<<<< 打开目录或文件 uiAction --------
+
+      // ---------- 编辑markdown uiAction >>>>>>>>>> --------
+      async prepareEditMarkdownData(funObj) {
+        this.editMarkdownPath = funObj.path;
+        this.editMarkdownName = funObj.basename;
+      },
+      async getMarkdownContent() {
+        this.editMarkdownContent = (await window.jianghuAxios({
           data: {
             appData: {
               pageId: 'cloud_drive',
               actionId: 'getMarkdownContent',
               actionData: {
-                path
+                path: this.editMarkdownPath
               },
             }
           }
         })).data.appData.resultData.mdContent;
-        return this.currentMarkdownContent;
       },
-      // ---------- <<<<<<<<<<< 获取数据 uiAction  --------
+      async doEditMarkdownItem() {
+        this.$emit("edit-markdown-item", { path: this.editMarkdownPath, name: this.editMarkdownName, content: this.editMarkdownContent });
+      },
+      async clearEditMarkdownItem() {
+        this.editMarkdownPath = null;
+        this.editMarkdownName = null;
+        this.editMarkdownContent = null;
+      },
+      // ---------- <<<<<<<<<<< 编辑markdown uiAction --------
 
-      // ---------- 文件操作 uiAction >>>>>>>>>> --------
-      /**
-       * 文档编辑
-       * @param item
-       */
-      async editMarkdownItem(item) {
-        this.currentMarkdownPath = item.path;
-        await this.getMarkdownDetail(item.path);
-        this.currentMarkdownPath = null;
-        this.$emit("edit-markdown-item", { path: item.path, name: item.basename, content: this.currentMarkdownContent });
+      // ---------- 剪切 uiAction >>>>>>>>>> --------
+      cutItem(funObj) {
+        this.$emit("cut-item", funObj.path);
       },
-      /**
-       * 剪切文件
-       * @param item
-       */
-      cutItem(item) {
-        this.$emit("cut-item", item.path);
-      },
-      /**
-       * 复制文件
-       * @param item
-       */
-      copyItem(item) {
-        this.$emit("copy-item", item.path);
-      },
-      // ---------- <<<<<<<<<<< 文件操作 uiAction  --------
+      // ---------- <<<<<<<<<<< 剪切 uiAction --------
 
-      // ---------- 删除数据 uiAction >>>>>>>>>> --------
-      /**
-       * 开始删除
-       * @param funObj
-       */
-      async prepareDeleteItem(funObj) {
-        this.deleteItem = _.cloneDeep(funObj);
-        this.currentDeleteItemPath = this.deleteItem.path;
+      // ---------- 复制 uiAction >>>>>>>>>> --------
+      copyItem(funObj) {
+        this.$emit("copy-item", funObj.path);
       },
-      async confirmDeleteItemDialog() {
-        let confirmed = await window.confirmDialog({
-          title:
-            `<$ constantUiMap.btn.sureDelete $>${this.deleteItem.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}? \n ${this.deleteItem.basename}`
-        }
-        );
-        if (!confirmed) {
-          throw new Error("[confirmDeleteItemDialog] 否");
+      // ---------- <<<<<<<<<<< 复制 uiAction --------
+
+      // ---------- 文件重命名 uiAction >>>>>>>>>> --------
+      async prepareRenameFileData(funObj) {
+        this.renameFileItemPath = funObj.path;
+        this.renameFileItemNewName = funObj.basename;
+      },
+      openRenameFileMenu() {
+        this.isRenameFileMenuShown = true;
+      },
+      async prepareRenameFileValidate(){
+        if(_.isEmpty(this.renameFileItemNewName)) {
+          window.vtoast.fail('请输入文件名称');
+          throw new Error("[prepareRenameFileValidate] 否");
         }
       },
-      async doDeleteItem() {
-        await window.jianghuAxios({
-          data: {
-            appData: {
-              pageId: 'cloud_drive',
-              actionId: 'delete',
-              actionData: { path: this.currentDeleteItemPath },
-            }
-          }
-        })
-        this.deleteItem = null;
-        this.currentDeleteItemPath = null;
-      },
-      // ---------- <<<<<<<<<<< 删除数据 uiAction  --------
-
-      // ---------- 重命名 uiAction >>>>>>>>>> --------
-      /**
-       * 打开重命名文件mini弹窗
-       * @param item
-       */
-      startRenameItem(item) {
-        item.newFilename = item.basename;
-      },
-      /**
-       * 检查重命名文件名
-       * @param item
-       * @returns {Promise<void>}
-       */
-      prepareCreateFileDate(item) {
-        const { newFilename } = item;
-        if (!newFilename) {
-          window.vtoast.fail('请输入新的文件名称');
-          throw new Error("[prepareCreateFileDate] 否");
-        }
-      },
-      /**
-       * 同步重命名到服务端
-       * @param funObj
-       * @returns {Promise<void>}
-       */
-      async doRenameItem(funObj) {
-        const { path, newFilename } = funObj;
+      async doRenameFile() {
         window.vtoast.loading("<$ constantUiMap.btn.fileRename $>");
         await window.jianghuAxios({
           data: {
@@ -375,45 +336,57 @@
               pageId: 'cloud_drive',
               actionId: 'renameFile',
               actionData: {
-                path,
-                newFilename
+                path: this.renameFileItemPath,
+                newFilename: this.renameFileItemNewName
               },
             }
           }
         })
         window.vtoast.success('<$ constantUiMap.btn.renamedSuccess $>');
       },
-      /**
-       * 关闭重命名mini弹窗
-       * @param item
-       */
-      closeRenameDialog(item) {
-        item.newFolderPopper = false;
+      closeRenameFileMenu(item) {
+        this.isRenameFileMenuShown = false;
+        this.renameFileItemPath = null;
+        this.renameFileItemNewName = null;
       },
-      // ---------- <<<<<<<<<<< 重命名 uiAction  --------
+      // ---------- <<<<<<<<<<< 文件重命名 uiAction --------
 
-      // ---------- 公共方法 uiAction >>>>>>>>>> --------
-      /**
-       * 检查当前文件是否图片
-       * @param filename
-       * @returns {boolean}
-       */
+      // ---------- 删除文件 uiAction >>>>>>>>>>>> --------
+      async prepareDeleteData(funObj) {
+        this.deleteItem = _.cloneDeep(funObj);
+      },
+      async confirmDeleteItemDialog() {
+        if (await window.confirmDialog({ title:  `<$ constantUiMap.btn.sureDelete $>${this.deleteItem.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}? \n ${this.deleteItem.basename}`}) === false) {
+          throw new Error("[confirmDeleteItemDialog] 否");
+        }
+      },
+      async prepareDoDeleteItem() {
+        const { path } = this.deleteItem;
+        this.deleteItemPath = path;
+      },
+      async doDeleteItem() {
+        await window.vtoast.loading(`删除文件`);
+        await window.jianghuAxios({
+          data: {
+            appData: {
+              pageId: 'cloud_drive',
+              actionId: 'delete',
+              actionData: { path: this.deleteItemPath },
+            }
+          }
+        })
+        await window.vtoast.success("删除文件成功");
+      },
+      async clearDeleteItem() {
+        this.deleteItem = {};
+        this.deleteItemPath = null;
+      },
+      // ---------- <<<<<<<<<<< 删除文件 uiAction  --------
+
+      // ---------- 公共方法 >>>>>>>>>> --------
       checkIsImg(filename) {
         return /\.(jpg|jpeg|png|GIF|JPG|PNG)$/.test(filename);
       },
-      /**
-       * 打开目录/文件
-       * @param path
-       */
-      openDirectoryOrFile(path) {
-        this.$emit("path-changed", path);
-      },
-      /**
-       * 文件大小计算
-       * @param bytes
-       * @param decimals
-       * @returns {string}
-       */
       parseFileSize(bytes, decimals = 2) {
         if (bytes === 0) return '0 bytes';
         const k = 1024;
@@ -422,11 +395,10 @@
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
       },
-      /* 刷新数据 */
-      refreshData() {
-        this.$emit("get-data");
+      refreshDirectory() {
+        this.$emit("refresh-directory");
       },
-      // ---------- <<<<<<<<<<< 公共方法 uiAction  --------
+      // ---------- <<<<<<<<<<< 公共方法  --------
     },
   });
 </script>

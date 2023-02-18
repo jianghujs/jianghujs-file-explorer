@@ -7,16 +7,17 @@
     </v-btn>
     <v-breadcrumbs class="py-0 px-2 ml-2 jh-file-explorer-breadcrumbs">
       <!--根目录-->
-      <v-breadcrumbs-item :input-value="currentPath === '/'" @click="doUiAction('changePath', '/')" role="button">
+      <v-breadcrumbs-item :disabled="currentPath === '/'" @click="doUiAction('changePath', '/')" role="button">
         <v-icon class="mr-2" color="success">mdi-cloud-circle</v-icon>
         <span class="text-subtitle-2 font-weight-medium success--text">网盘</span>
       </v-breadcrumbs-item>
       <!--路径目录-->
       <v-breadcrumbs-item
         v-for="(pathItem, index) in currentPathList"
-        :input-value="index === currentPathList.length - 1" :key="index + '-btn'"
+        :key="index + '-btn'"
         @click="doUiAction('changePath', pathItem.path)"
-        role="button">
+        role="button"
+        :disabled="index === currentPathList.length - 1">
         <v-icon color="success">mdi-chevron-right</v-icon>
         <span class="ml-2 text-subtitle-2 font-weight-medium success--text">{{ pathItem.name.endsWith('_recycle') ? '回收站' : pathItem.name }}</span>
       </v-breadcrumbs-item>

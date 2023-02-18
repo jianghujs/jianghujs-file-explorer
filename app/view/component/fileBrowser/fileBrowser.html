@@ -1,8 +1,8 @@
 <template id="file-browser">
   <!-- fileBrowser >>>>>>>>>>>>> -->
-  <v-card class="rounded-lg pa-4 pb-0">
+  <v-card class="rounded-lg pt-4">
     <!-- 操作按钮 >>>>>>>>>>>>> -->
-    <v-row class="ma-0 pa-0 mb-2" v-if="currentPathIsDir">
+    <v-row class="ma-0 px-4 mb-2" v-if="currentPathIsDir">
       <!-- ✅新建目录 -->
       <create-new-directory
         :current-path="currentPath"
@@ -36,7 +36,7 @@
     <!-- <<<<<<<<<<<<< 操作按钮 -->
 
     <!-- 路径导航栏 >>>>>>>>>>>>> -->
-    <v-row class="ma-0 mb-2 align-center">
+    <v-row class="ma-0 px-4 mb-2 align-center">
       <!-- ✅路径面包屑栏  -->
       <breadcrumbs
         :current-path="currentPath"
@@ -64,7 +64,7 @@
       <!--✅文件列表-->
       <directory-list
         v-if="currentPathIsDir"
-        ref="directoryOrFileDetail"
+        ref="directoryList"
         style="width: 100%;"
 
         :current-path="currentPath"
@@ -74,11 +74,11 @@
         :item-list="currentDataList"
         :table-search-text="tableSearchText"
 
-        v-on:path-changed="doUiAction('changeCurrentPath', $event)"
-        v-on:copy-item="doUiAction('copyItem', $event)"
-        v-on:cut-item="doUiAction('cutItem', $event)"
-        v-on:edit-markdown-item="doUiAction('startUpdateMarkdown', $event)"
-        v-on:get-data="doUiAction('getDirectoryData')">
+        @path-changed="doUiAction('changeCurrentPath', $event)"
+        @copy-item="doUiAction('copyItem', $event)"
+        @cut-item="doUiAction('cutItem', $event)"
+        @edit-markdown-item="doUiAction('startUpdateMarkdown', $event)"
+        @refresh-directory="doUiAction('getDirectoryData')">
       </directory-list>
       <!--✅文件详情-->
       <file-detail v-else :current-path="currentPath"></file-detail>
@@ -213,6 +213,7 @@
             break;
         }
       },
+      
       // -- 读取数据 getDirectoryData >>>>>>>>>>>> ------
       startRefresh() {
         this.isRefreshDirectory = true;

@@ -1,11 +1,9 @@
 <template id="file-detail">
   <!-- 文件详情 >>>>>>>>>>>>> --> 
-  <v-card style="width: 100%">
+  <v-card class="file-detail-wrapper" flat>
     <v-card-text>
-      <!--✅路径-->
-      <div class="text-center mb-4">{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}` }}</div>
       <!--✅markdown-->
-      <div v-if="fileType === 'markdown'" style="height: calc(100vh - 255px); overflow: auto;">
+      <div v-if="fileType === 'markdown'" class="markdown-wrapper">
         <!--✅内容-->
         <md2html v-if="markdownContent" :article-content="markdownContent"></md2html>
         <!--✅加载状态-->
@@ -15,31 +13,28 @@
         </div>
       </div>
       <!--✅文件-->
-      <template v-else>
+      <div v-else class="text-center file-wrapper">
         <!--✅图片-->
         <v-img v-if="fileType === 'image'" min-width="30" max-width="500" min-height="30" max-height="500"
           :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
-          lazy-src=""
-          class="grey lighten-2 mb-5" style="margin: auto; cursor: pointer;"
+          class="d-inline-block"
           @click="doUiAction('openFile', `/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`)">
         </v-img>
         <!--✅视频-->
         <video v-if="fileType === 'video'" width="80%" min-width="30" max-width="500" min-height="30" max-height="500"
-          style="height: 70vh"
           :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
-          lazy-src=""
-          class="grey lighten-2 mb-5" style="display: block; margin: auto;" controls>
+          class="d-inline-block" controls>
           <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" type="video/mp4">
         </video>
         <!--✅音频-->
         <audio v-if="fileType === 'audio'" min-width="30" max-width="500" min-height="30" max-height="500"
           :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
-          lazy-src=""
-          class="my-10" style="display: block; margin: auto;" controls>
-          <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`"
-            type="audio/mpeg">
+          class="my-10" controls>
+          <source :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}?v=${new Date().getTime()}`" type="audio/mpeg">
         </audio>
-      </template>
+      </div>
+       <!--✅路径-->
+       <div class="text-center mt-4"><$ constantUiMap.btn.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}` }}</div>
     </v-card-text>
   </v-card>
   <!-- <<<<<<<<<<<<< 文件详情 -->
@@ -72,7 +67,7 @@
           if (['mp4'].includes(ext.toLowerCase())) {
             return 'video';
           }
-          if (['mp3'].includes(ext.toLowerCase())) {
+          if (['mp3', 'wav'].includes(ext.toLowerCase())) {
             return 'audio';
           }
           if (['md'].includes(ext.toLowerCase())) {
@@ -121,3 +116,17 @@
     }
   });
 </script>
+
+<style scoped>
+  .file-detail-wrapper{
+    width: 100%;
+  }
+  .markdown-wrapper, 
+  .file-wrapper{
+    height: calc(100vh - 255px); 
+    overflow: auto;
+  }
+  .file-wrapper v-image{
+    cursor: pointer;
+  }
+</style>
