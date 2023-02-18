@@ -126,8 +126,9 @@
         // html: "mdi-language-html5",
         // js: "mdi-nodejs",
         // json: "mdi-json",
-        md: "mdi-sticker-text-outline",
         // pdf: "mdi-file-pdf",
+        // xls: "mdi-file-excel",
+        md: "mdi-sticker-text-outline",
         png: "mdi-file-image",
         jpg: "mdi-file-image",
         jpeg: "mdi-file-image",
@@ -137,8 +138,7 @@
         wmv: "mdi-filmstrip",
         mov: "mdi-filmstrip",
         txt: "mdi-file-document-outline",
-        // xls: "mdi-file-excel",
-        // other: "mdi-file-outline"
+        other: "mdi-file-outline"
       }),
 
       //目录文件缓存
@@ -178,6 +178,8 @@
     watch: {
       currentPath() {
         this.doUiAction('getDirectoryData');
+        // table高度铺满
+        resetTableMaxHeight();
       }
     },
     async created() {
@@ -213,8 +215,8 @@
             break;
         }
       },
-      
-      // -- 读取数据 getDirectoryData >>>>>>>>>>>> ------
+
+      // ---------- 读取数据 uiAction >>>>>>>>>> --------
       startRefresh() {
         this.isRefreshDirectory = true;
       },
@@ -264,43 +266,37 @@
       stopRefresh() {
         this.isRefreshDirectory = false;
       },
-      // -- <<<<<<<<<<<< 读取数据 getDirectoryData ------
+      // ---------- <<<<<<<<<<< 读取数据 uiAction --------
 
-      // -- 切换目录 changeCurrentPath >>>>>>>>>>>> ------
+      // ---------- 切换目录 uiAction >>>>>>>>>> --------
       changeCurrentPath(path) {
         this.currentPath = path;
       },
-      // -- <<<<<<<<<<<< 切换目录 changeCurrentPath ------
+      // ---------- <<<<<<<<<<< 切换目录 uiAction --------
 
-      // -- 文件操作 >>>>>>>>>>>> ------
-      /**
-       * ✅修改markdown文件
-       * @param funObj 文件数据
-       */
+      // ---------- 编辑文档 uiAction >>>>>>>>>> --------
       async prepareUpdateMarkdown(funObj) {
         this.currentMarkdownItem = funObj;
       },
-      /**
-       * ✅剪切文件
-       * @param path
-       */
+      // ---------- <<<<<<<<<<< 编辑文档 uiAction --------
+
+      // ---------- 剪切 uiAction >>>>>>>>>> --------
       cutItem(path) {
         this.currentCopyPath = path
         this.currentPasteMode = 'cut'
         window.vtoast.success('<$ constantUiMap.btn.cut $>');
       },
-      /**
-       * ✅复制文件
-       * @param path
-       */
+      // ---------- <<<<<<<<<<< 剪切 uiAction --------
+
+      // ---------- 复制 uiAction >>>>>>>>>> --------
       copyItem(path) {
         this.currentCopyPath = path
         this.currentPasteMode = 'copy'
         window.vtoast.success('<$ constantUiMap.btn.copied $>');
       },
-      // -- <<<<<<<<<<<< 文件操作 ------
+      // ---------- <<<<<<<<<<< 复制 uiAction --------
 
-      // -- 粘贴文件 pasteItem >>>>>>>>>>>> ------
+      // ---------- 粘贴文件 uiAction >>>>>>>>>> --------
       async preparePasteItem() {
         this.pasteItemFromDir = this.currentCopyPath.substring(0, this.currentCopyPath.lastIndexOf('/') + 1);
         this.pasteItemFilename = this.currentCopyPath.substring(this.currentCopyPath.lastIndexOf('/') + 1);
@@ -359,7 +355,7 @@
         this.pasteItemFromDir = null;
         this.pasteItemFilename = null;
       },
-      // -- <<<<<<<<<<<< 粘贴文件 pasteItem ------    
+      // ---------- <<<<<<<<<<< 粘贴文件 uiAction --------
     }
   })
 </script>
@@ -400,24 +396,8 @@
     line-height: 30px;
   }
 
-  .file-list {
-    max-height: calc(100vh - 195px);
-    overflow: auto;
-  }
-
   body .v-menu__content {
     margin-top: 20px;
-  }
-
-  .v-data-table>.v-data-table__wrapper>table>tbody>tr>td,
-  .v-data-table>.v-data-table__wrapper>table>tfoot>tr>td,
-  .v-data-table>.v-data-table__wrapper>table>thead>tr>td {
-    color: #41434f;
-  }
-
-  td:not(.v-picker td),
-  th:not(.v-picker th) {
-    border-bottom: thin solid rgba(0, 0, 0, .06) !important;
   }
 
   td:not(:first-child):not(.v-picker td),

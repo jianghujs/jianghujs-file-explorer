@@ -1,46 +1,48 @@
 <template id="file-upload">
+  <!-- 上传文件 >>>>>>>>>>>>> -->      
   <div>
+    <!-- 选择文件触发器[隐藏掉，用按钮触发] >>>>>>>>>>>>> -->        
+    <input v-show="false" ref="inputUpload" type="file" multiple @change="doUiAction('addFile', $event)"/>
+    <!-- <<<<<<<<<<<<< 选择文件触发器 -->
+
     <!-- 上传文件按钮 >>>>>>>>>>>>> -->        
     <v-btn small v-if="currentPath" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="currentPath === '/'" class="ml-2">
       <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
       <$ constantUiMap.btn.upload $>
     </v-btn>
-    <input v-show="false" style="opacity: 0; position: absolute; top: -200px" ref="inputUpload" type="file" multiple
-    @change="addNewFile"/>
     <!-- <<<<<<<<<<<<< 上传文件按钮 -->
 
     <!-- 上传文件弹窗 >>>>>>>>>>>>> -->
     <v-overlay v-if="isUploadDialogShown" style="z-index: 60;">
-      <v-card flat light class="mx-auto" :loading="loading" style="width: 600px;">
+      <v-card flat light class="mx-auto" :loading="isUploading" style="width: 600px;">
         <!-- ✅header -->
         <v-toolbar flat dense dark style="background-color: #fff;">
           <div class="black--text ml-2" style="font-size: 16px;"><$ constantUiMap.btn.upload $><$ constantUiMap.btn.file $>
           </div>
           <v-spacer></v-spacer>
           <v-toolbar-items>
-            <v-btn text @click="closeUploadDialog" >
+            <v-btn text @click="isUploadDialogShown = false" >
               <v-icon class="black--text" style="font-size: 18px;">mdi-close</v-icon>
             </v-btn>
           </v-toolbar-items>
         </v-toolbar>
-        
+
         <!-- ✅分隔线 -->
         <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
 
         <!-- ✅按钮区 -->
         <v-card-text>
-          <input v-show="false" ref="inputUpload" type="file" multiple @change="addNewFile"/>
           <v-btn color="success" depressed @click="$refs.inputUpload.click()"
                  title="<$ constantUiMap.common.select $><$ constantUiMap.btn.file $>">
             <v-icon class="mr-1" small>mdi-file-plus</v-icon>
             <$ constantUiMap.common.select $><$ constantUiMap.btn.file $>
           </v-btn>
-          <v-btn depressed @click="uploadFileList" class="ml-1" :disabled="!listItems || listItems.length === 0"
+          <v-btn depressed @click="doUiAction('uploadFileList')" class="ml-1" :disabled="!fileList || fileList.length === 0"
                  title="<$ constantUiMap.btn.uploadAll $>">
             <v-icon class="mr-1" small>mdi-file-upload</v-icon>
             <$ constantUiMap.btn.uploadAll $>
           </v-btn>
-          <v-btn depressed @click="cleanFileList" class="ml-1" :disabled="!listItems || listItems.length === 0"
+          <v-btn depressed @click="doUiAction('removeAllFile')" class="ml-1" :disabled="!fileList || fileList.length === 0"
                  title="<$ constantUiMap.btn.removeAll $>">
             <v-icon class="mr-1" small>mdi-file-remove</v-icon>
             <$ constantUiMap.btn.removeAll $>
@@ -48,9 +50,9 @@
         </v-card-text>
 
         <!-- ✅文件列表 -->
-        <v-card-text v-if="listItems.length" class="py-0 files-list-wrapper">
-          <v-list v-if="listItems.length">
-            <v-list-item v-for="(file, index) in listItems" :key="index"
+        <v-card-text v-if="fileList.length" class="py-0 files-list-wrapper">
+          <v-list v-if="fileList.length">
+            <v-list-item v-for="(file, index) in fileList" :key="index"
                          style="background-color: #f5f8fa;border-radius: 6px;" class="mb-2">
               <v-list-item-avatar>
                 <v-img v-if="file.preview" :src="file.preview"></v-img>
@@ -66,7 +68,7 @@
                 <v-list-item-subtitle>{{ formatBytes(file.size) }} - {{ file.type }}</v-list-item-subtitle>
               </v-list-item-content>
               <v-list-item-action class="d-flex">
-                <v-btn icon @click="removeFile(index)"small>
+                <v-btn icon @click="doUiAction('removeFile', index)"small>
                   <v-icon samll style="font-size: 16px;">mdi-close</v-icon>
                 </v-btn>
               </v-list-item-action>
@@ -89,154 +91,175 @@
             <span class="ml-2">{{ currentPath }}</span>
           </div>
           <div>
-            <span v-if="maxUploadFilesCount"><$ constantUiMap.btn.maxFilesCount $>: {{ maxUploadFilesCount }}</span>
+            <span v-if="maxUploadFileCount"><$ constantUiMap.btn.maxFilesCount $>: {{ maxUploadFileCount }}</span>
             <span v-if="maxUploadFileSize"><$ constantUiMap.btn.maxFileSize $>: {{ formatBytes(maxUploadFileSize) }}</span>
           </div>
         </v-card-text>
       </v-card>
     </v-overlay>
     <!-- <<<<<<<<<<<<< 上传文件弹窗 -->
-    
   </div>
+  <!-- <<<<<<<<<<<<< 上传文件 -->
 </template>
 
 <script>
-const imageMimeTypes = ["image/png", "image/jpeg"];
-Vue.component("file-upload", {
-  vuetify: new Vuetify(),
-  name: 'file-upload',
-  template: '#file-upload',
-  props: {
-    currentPath: String,
-    fileIconList: Object,
-  },
-  data() {
-    return {
-      maxUploadFilesCount: 0,
-      maxUploadFileSize: 1024 * 1024 * 1024,
-      imageMaxUploadFileSize: 700 * 1024,
-      loading: false,
-      uploading: false,
-      isUploadDialogShown: false,
-      progress: 0,
-      listItems: []
-    };
-  },
-  methods: {
-    async filesMap(fileList) {
-      let promises = Array.from(fileList).map(file => {
-        let result = {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          extension: file.name.split(".").pop()
-        };
-        return new Promise(resolve => {
-          if (!imageMimeTypes.includes(result.type)) {
-            return resolve(result);
+  Vue.component("file-upload", {
+    vuetify: new Vuetify(),
+    name: 'file-upload',
+    template: '#file-upload',
+    props: {
+      currentPath: String,
+      fileIconList: Object,
+    },
+    data() {
+      return {
+        //上传限制
+        maxUploadFileCount: 0,
+        maxUploadFileSize: 1024 * 1024 * 1024,
+        maxUploadImageSize: 700 * 1024,
+
+        //文件列表
+        fileList: [],
+        
+        //文件上传
+        isUploadDialogShown: false,
+        isUploading: false,
+        progress: 0,
+      };
+    },
+    methods: {
+      async doUiAction(uiActionId, uiActionData) {
+        switch (uiActionId) {
+          case 'addFile':
+            await this.prepareAddFileData(uiActionData);
+            await this.openUploadDialog();
+            await this.checkAndFilterExceedMaxSizeImage();
+            await this.checkIsExceedMaxUploadCount();
+            await this.addFileToFileList();
+            await this.clearAddFile();
+            break;
+          case 'removeFile':
+            await this.removeFile(uiActionData);
+            break;
+          case 'removeAllFile':
+            await this.removeAllFile();
+            break;
+          case 'uploadFileList':
+            await this.doUploadFileList();
+            await this.closeUploadDialog();
+            await this.refreshDirectory();
+            break;
+          default:
+            console.error("[doUiAction] uiActionId not find", { uiActionId });
+            break;
+        }
+      },
+
+      // ---------- 添加文件 uiAction >>>>>>>>>> --------
+      async prepareAddFileData(event) {
+        this.addFileList = Array.from(event.target.files);
+      },
+      async openUploadDialog() {
+        this.isUploadDialogShown = true;
+      },
+      async checkAndFilterExceedMaxSizeImage() {
+        if (this.maxUploadImageSize) {
+          const isExceedMaxSize = this.addFileList.some(file => this.checkIsImg(file.name) && file.size > this.maxUploadImageSize);
+          if (isExceedMaxSize) {
+            window.vtoast.fail(`部分图片文件大于${this.maxUploadImageSize}, 请重新压缩再上传`);
+            this.addFileList = this.addFileList.filter(file => !this.checkIsImg(file.name) || this.checkIsImg(file.name) && file.size <= this.maxUploadImageSize);
           }
-          var reader = new FileReader();
-          reader.onload = function (e) {
-            result.preview = e.target.result;
-            resolve(result);
-          };
-          reader.readAsDataURL(file);
-        });
-      });
+        }
+      },
+      async checkIsExceedMaxUploadCount() {
+        if (this.maxUploadFileCount && this.fileList.length + this.addFileList.length > this.maxUploadFileCount) {
+          this.addFileList = this.addFileList.slice(0, this.maxUploadFileCount - this.fileList.length);
+        }
+      },
+      async addFileToFileList() {
+        this.fileList.push(...this.addFileList);
+      },
+      async clearAddFile() {
+        this.addFileList = []
+        this.$refs.inputUpload.value = "";
+      },
+      // ---------- <<<<<<<<<<< 添加文件 uiAction  --------
 
-      return await Promise.all(promises);
-    },
+      // ---------- 移除文件 uiAction >>>>>>>>>> --------
+      removeFile(fileIndex) {
+        this.fileList.splice(fileIndex, 1);
+      },
+      // ---------- <<<<<<<<<<< 移除文件 uiAction  --------
 
-    addNewFileList(files) {
-      files = Array.from(files);
+      // ---------- 移除全部文件 uiAction >>>>>>>>>> --------
+      removeAllFile() {
+        this.fileList = [];
+      },
+      // ---------- <<<<<<<<<<< 移除全部文件 uiAction  --------
 
-    },
-
-    async addNewFile(event) {
-      let fileList = Array.from(event.target.files);
-      this.isUploadDialogShown = true;
-      this.checkAndFilterImageExceedMaxSize(fileList);
-      if (this.maxUploadFilesCount && this.uploadFileList.length + fileList.length > this.maxUploadFilesCount) {
-        fileList = fileList.slice(0, this.maxUploadFilesCount - this.uploadFileList.length);
-      }
-      this.listItems.push(...fileList);
-      this.$refs.inputUpload.value = "";
-    },
-
-    removeFile(index) {
-      this.listItems.splice(index, 1);
-    },
-
-    cleanFileList() {
-      this.listItems = [];
-    },
-
-    closeUploadDialog() {
-      this.cleanFileList = [];
-      this.isUploadDialogShown = false;
-    },
-
-    async uploadFileList() {
-      this.uploading = true;
-      const that = this;
-      for (let file of this.listItems) {
-        window.vtoast.loading(`${file.name} <$ constantUiMap.btn.uploadProgress $>: 0.00%`);
+      // ---------- 上传全部文件 uiAction >>>>>>>>>> --------
+      async doUploadFileList() {
+        this.isUploading = true;
+        await window.vtoast.loading("正在上传文件");
+        for (let file of this.fileList) {
+          await this.prepareUploadFile(file);
+          await this.doUploadFile();
+        }
+        await window.vtoast.success("上传文件成功");
+      },
+      async prepareUploadFile(funObj) {
+        this.uploadFileItem = funObj;
+        this.uploadFileItemName = funObj.name;
+      },
+      async doUploadFile() {
+        window.vtoast.loading(`${this.uploadFileItemName} <$ constantUiMap.btn.uploadProgress $>: 0.00%`);
         await window.jianghuAxios.httpUploadByStream({
-          file,
-          filenameStorage: file.name,
+          file: this.uploadFileItem,
+          filenameStorage: this.uploadFileItemName,
           fileDirectory: '/cloudDrive' + this.currentPath,
           onProgress: (total, loaded) => {
-            // TODO: that.progress <v-overlay :value="uploading"  ==>  不好使
-            that.progress = Number((loaded * 100 / total).toFixed(2));
-            window.vtoast.loading(`${file.name} <$ constantUiMap.btn.uploadProgress $>: ${that.progress}%`);
+            this.progress = Number((loaded * 100 / total).toFixed(2));
+            window.vtoast.loading(`${this.uploadFileItemName} <$ constantUiMap.btn.uploadProgress $>: ${this.progress}%`);
             if (loaded === total) {
-              window.vtoast.success(`${file.name} <$ constantUiMap.btn.uploadProgress $>: 100%`);
+              window.vtoast.success(`${this.uploadFileItemName} <$ constantUiMap.btn.uploadProgress $>: 100%`);
             }
           }
         })
-      }
-      this.uploading = false;
-      this.closeUploadDialog();
-      this.$emit("refresh-directory");
+      },
+      closeUploadDialog() {
+        this.isUploadDialogShown = false;
+        this.isUploading = false;
+        this.fileList = [];
+      },
+      refreshDirectory() {
+        this.$emit("refresh-directory");
+      },
+      // ---------- <<<<<<<<<<< 上传全部文件 uiAction  --------
+
+      // ---------- 公共方法 >>>>>>>>> --------
+      checkIsImg(filename) {
+        return /\.(jpg|jpeg|png|GIF|JPG|PNG)$/.test(filename);
+      },
+      formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+      },
+      // ---------- <<<<<<<<<<< 公共方法 --------
     },
-    formatBytes(bytes, decimals = 2) {
-      if (bytes === 0) return '0 bytes';
-      const k = 1024;
-      const dm = decimals < 0 ? 0 : decimals;
-      const sizes = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-    },
-    /**
-     * ✅检查待上传图片大小，并剔除超过上限的
-     * @param files
-     */
-    checkAndFilterImageExceedMaxSize(files) {
-      if (this.imageMaxUploadFileSize) {
-        const isImage = this.materialType === 'image';
-        let exceedMaxSizeImg = false;
-        if (isImage) {
-          exceedMaxSizeImg = files.some(file => file.size > this.imageMaxUploadFileSize);
-        }
-        const checkImageSizeError = isImage && exceedMaxSizeImg;
-        if (checkImageSizeError) {
-          window.vtoast.fail('部分图片文件大于 700K, 请重新压缩过后再上传素材');
-          files = files.filter(file => file.size <= this.imageMaxUploadFileSize);
-        }
-      }
-    },
-  },
-});
+  });
 </script>
 
 <style scoped>
-::v-deep .v-overlay__content {
-  width: 90%;
-  max-width: 500px;
-}
-
-::v-deep .v-overlay__content .files-list-wrapper {
-  max-height: 250px;
-  overflow-y: auto;
-}
+  ::v-deep .v-overlay__content {
+    width: 90%;
+    max-width: 500px;
+  }
+  ::v-deep .v-overlay__content .files-list-wrapper {
+    max-height: 250px;
+    overflow-y: auto;
+  }
 </style>

@@ -26,19 +26,16 @@
             <span class="ml-2">{{ item.basename.endsWith('_recycle') ? '回收站' : item.basename }}</span>
           </div>
           <!--✅文件-->
-          <div v-else @click="doUiAction('openDirectoryOrFile', item.path)" class="d-flex" role="button">
+          <div v-else @click="doUiAction('openDirectoryOrFile', item.path)" role="button">
             <template>
-              <v-avatar
-                tile
-                v-if="checkIsImg(item.basename)"
-                class=""
-                size="25"
-              >
+              <!--✅图片-->
+              <v-avatar tile v-if="checkIsImg(item.basename)" size="25">
                 <v-img :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}/${item.basename}`"></v-img>
               </v-avatar>
+              <!--✅其他文件-->
               <v-icon v-else>{{ fileIconList[item.extension.toLowerCase()] || fileIconList['other'] }}</v-icon>
             </template>
-            <span style="flex: 1; line-height: 25px" class="ml-2">{{ item.basename }}</span>
+            <span class="ml-2 file-name">{{ item.basename }}</span>
           </div>
         </template>
 
@@ -61,7 +58,7 @@
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
                   <v-progress-circular v-if="deleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
-                  <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
+                  <v-icon v-else color="grey lighten-1" size="20">mdi-delete-outline</v-icon>
                 </v-btn>
               </template>
               <span>移入回收站</span>
@@ -76,7 +73,7 @@
               <v-tooltip top v-if="roleId === 'teacher'">
                 <template v-slot:activator="{ on, attrs }">
                   <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
-                    <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-cut</v-icon>
+                    <v-icon color="grey lighten-1" size="18">mdi-content-cut</v-icon>
                   </v-btn>
                 </template>
                 <span>剪切</span>
@@ -85,77 +82,70 @@
 
             <!--✅非回收站文件-->
             <div class="text-right" v-else>
-              <template v-if="item.sync">
-                <v-progress-circular indeterminate :size="18" color="primary"></v-progress-circular>
-                <span>同步中</span>
-              </template>
-              <!-- ✅操作 -->
-              <template v-else>
-                <!--✅文档编辑-->
-                <v-tooltip top v-if="item.extension === 'md'">
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('editMarkdownItem', item)">
-                      <v-progress-circular v-if="editMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
-                      <v-icon v-else color="grey lighten-1" style="font-size: 20px;">mdi-text-box-edit-outline</v-icon>
+              <!--✅文档编辑-->
+              <v-tooltip top v-if="item.extension === 'md'">
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('editMarkdownItem', item)">
+                    <v-progress-circular v-if="editMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                    <v-icon v-else color="grey lighten-1" size="18">mdi-text-box-edit-outline</v-icon>
+                  </v-btn>
+                </template>
+                <span>编辑文档</span>
+              </v-tooltip>
+              <!--✅剪切-->
+              <v-tooltip top v-if="roleId === 'teacher'">
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
+                    <v-icon color="grey lighten-1" size="18">mdi-content-cut</v-icon>
+                  </v-btn>
+                </template>
+                <span>剪切</span>
+              </v-tooltip>
+              <!--✅重命名-->
+              <v-menu :value="isRenameFileMenuShown && renameFileItemPath === item.path" :close-on-content-click="false" :nudge-width="200" offset-y>
+                <template v-slot:activator="{ on }">
+                  <v-btn icon v-on="on" @click="doUiAction('startRenameFile', item)">
+                    <v-tooltip top>
+                      <template v-slot:activator="{ on, attrs }">
+                        <v-icon color="grey lighten-1" v-on="on" size="18">mdi-rename-box</v-icon>
+                      </template>
+                      <span>重命名</span>
+                    </v-tooltip>
+                  </v-btn>
+                </template>
+                <!--✅重命名弹窗-->
+                <v-card>
+                  <v-card-text>
+                    <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="renameFileItemNewName" hide-details color="success" class="jh-v-input" dense filled single-line></v-text-field>
+                  </v-card-text>
+                  <v-card-actions class="pa-4 pt-0">
+                    <v-spacer></v-spacer>
+                    <v-btn @click="closeRenameFileMenu" small depressed><$ constantUiMap.btn.cancel $></v-btn>
+                    <v-btn small depressed color="success" :disabled="!renameFileItemNewName" @click="doUiAction('renameFile')">
+                      <$ constantUiMap.btn.rename $>
                     </v-btn>
-                  </template>
-                  <span>编辑文档</span>
-                </v-tooltip>
-                <!--✅剪切-->
-                <v-tooltip top v-if="roleId === 'teacher'">
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
-                      <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-cut</v-icon>
-                    </v-btn>
-                  </template>
-                  <span>剪切</span>
-                </v-tooltip>
-                <!--✅重命名-->
-                <v-menu :value="isRenameFileMenuShown && renameFileItemPath === item.path" :close-on-content-click="false" :nudge-width="200" offset-y>
-                  <template v-slot:activator="{ on }">
-                    <v-btn icon v-on="on" @click="doUiAction('startRenameFile', item)">
-                      <v-tooltip top>
-                        <template v-slot:activator="{ on, attrs }">
-                          <v-icon color="grey lighten-1" v-on="on" style="font-size: 20px;">mdi-rename-box</v-icon>
-                        </template>
-                        <span>重命名</span>
-                      </v-tooltip>
-                    </v-btn>
-                  </template>
-                  <!--✅重命名弹窗-->
-                  <v-card>
-                    <v-card-text>
-                      <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="renameFileItemNewName" hide-details color="success" class="jh-v-input" dense filled single-line></v-text-field>
-                    </v-card-text>
-                    <v-card-actions class="pa-4 pt-0">
-                      <v-spacer></v-spacer>
-                      <v-btn @click="closeRenameFileMenu" small depressed><$ constantUiMap.btn.cancel $></v-btn>
-                      <v-btn small depressed color="success" :disabled="!renameFileItemNewName" @click="doUiAction('renameFile')">
-                        <$ constantUiMap.btn.rename $>
-                      </v-btn>
-                    </v-card-actions>
-                  </v-card>
-                </v-menu>
-                <!--✅复制-->
-                <v-tooltip top>
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('copyItem', item)">
-                      <v-icon color="grey lighten-1" style="font-size: 20px;">mdi-content-copy</v-icon>
-                    </v-btn>
-                  </template>
-                  <span>复制</span>
-                </v-tooltip>
-                <!--✅删除-->
-                <v-tooltip top v-if="roleId === 'teacher'">
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
-                      <v-progress-circular v-if="deleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
-                      <v-icon v-else color="grey lighten-1">mdi-delete-outline</v-icon>
-                    </v-btn>
-                  </template>
-                  <span>移入回收站</span>
-                </v-tooltip>
-              </template>
+                  </v-card-actions>
+                </v-card>
+              </v-menu>
+              <!--✅复制-->
+              <v-tooltip top>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('copyItem', item)">
+                    <v-icon color="grey lighten-1" size="18">mdi-content-copy</v-icon>
+                  </v-btn>
+                </template>
+                <span>复制</span>
+              </v-tooltip>
+              <!--✅删除-->
+              <v-tooltip top v-if="roleId === 'teacher'">
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
+                    <v-progress-circular v-if="deleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
+                    <v-icon v-else color="grey lighten-1" size="20">mdi-delete-outline</v-icon>
+                  </v-btn>
+                </template>
+                <span>移入回收站</span>
+              </v-tooltip>
             </div>
           </template>
         </template>
@@ -356,7 +346,7 @@
         this.deleteItem = _.cloneDeep(funObj);
       },
       async confirmDeleteItemDialog() {
-        if (await window.confirmDialog({ title:  `<$ constantUiMap.btn.sureDelete $>${this.deleteItem.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}? \n ${this.deleteItem.basename}`}) === false) {
+        if (await window.confirmDialog({ title:  '删除', content: `确定删除【${this.deleteItem.basename}】${this.deleteItem.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}吗？`}) === false) {
           throw new Error("[confirmDeleteItemDialog] 否");
         }
       },
@@ -365,7 +355,7 @@
         this.deleteItemPath = path;
       },
       async doDeleteItem() {
-        await window.vtoast.loading(`删除文件`);
+        await window.vtoast.loading(`删除${this.deleteItem.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}文件`);
         await window.jianghuAxios({
           data: {
             appData: {
@@ -404,21 +394,25 @@
 </script>
 
 <style scoped>
+  .file-name{
+    vertical-align: middle;
+  }
+
+  /* ---------- table >>>>>>>>>> -------- */
   .v-application .v-data-table .v-data-table__wrapper .v-data-table__progress {
     position: absolute;
     top: 0;
     width: 100%;
   }
-
   .v-application .v-data-table .v-data-table__wrapper .v-data-table__progress th {
     width: 100%;
     display: block;
     padding: 0 !important;
   }
-
   .v-application .v-data-table .v-data-table__wrapper .v-data-table__progress .v-progress-linear {
     max-width: 100% !important;
   }
+  /* ---------- <<<<<<<<<<< table -------- */
 
   /* ---------- tooltip >>>>>>>>>> -------- */
   /* 
