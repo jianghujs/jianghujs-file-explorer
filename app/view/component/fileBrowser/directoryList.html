@@ -54,7 +54,7 @@
           <!--✅文件夹-->
           <div class="text-right" v-if="item.type === 'dir' && currentPath !== '/'">
             <!--✅删除-->
-            <v-tooltip top v-if="item.path.indexOf('/_recycle/') === -1 && roleId === 'teacher'">
+            <v-tooltip top v-if="option.delete && item.path.indexOf('/_recycle/') === -1">
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
                   <v-progress-circular v-if="deleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
@@ -68,9 +68,9 @@
           <!--✅文件-->
           <template v-if="item.type === 'file'">
             <!--✅回收站的文件 -->
-            <div class="text-right" v-if="item.path.indexOf('_recycle') !== -1">
+            <div class="text-right" v-if="option.cut && item.path.indexOf('_recycle') !== -1">
               <!--✅剪切-->
-              <v-tooltip top v-if="roleId === 'teacher'">
+              <v-tooltip top>
                 <template v-slot:activator="{ on, attrs }">
                   <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
                     <v-icon color="grey lighten-1" size="18">mdi-content-cut</v-icon>
@@ -83,7 +83,7 @@
             <!--✅非回收站文件-->
             <div class="text-right" v-else>
               <!--✅文档编辑-->
-              <v-tooltip top v-if="item.extension === 'md'">
+              <v-tooltip top v-if="option.markdown && option.edit && item.extension === 'md'">
                 <template v-slot:activator="{ on, attrs }">
                   <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('editMarkdownItem', item)">
                     <v-progress-circular v-if="editMarkdownPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
@@ -93,7 +93,7 @@
                 <span>编辑文档</span>
               </v-tooltip>
               <!--✅剪切-->
-              <v-tooltip top v-if="roleId === 'teacher'">
+              <v-tooltip top v-if="option.cut">
                 <template v-slot:activator="{ on, attrs }">
                   <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('cutItem', item)">
                     <v-icon color="grey lighten-1" size="18">mdi-content-cut</v-icon>
@@ -102,7 +102,7 @@
                 <span>剪切</span>
               </v-tooltip>
               <!--✅重命名-->
-              <v-menu :value="isRenameFileMenuShown && renameFileItemPath === item.path" :close-on-content-click="false" :nudge-width="200" offset-y>
+              <v-menu v-if="option.rename" :value="isRenameFileMenuShown && renameFileItemPath === item.path" :close-on-content-click="false" :nudge-width="200" offset-y>
                 <template v-slot:activator="{ on }">
                   <v-btn icon v-on="on" @click="doUiAction('startRenameFile', item)">
                     <v-tooltip top>
@@ -128,7 +128,7 @@
                 </v-card>
               </v-menu>
               <!--✅复制-->
-              <v-tooltip top>
+              <v-tooltip top v-if="option.copy">
                 <template v-slot:activator="{ on, attrs }">
                   <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('copyItem', item)">
                     <v-icon color="grey lighten-1" size="18">mdi-content-copy</v-icon>
@@ -137,7 +137,7 @@
                 <span>复制</span>
               </v-tooltip>
               <!--✅删除-->
-              <v-tooltip top v-if="roleId === 'teacher'">
+              <v-tooltip top v-if="option.delete">
                 <template v-slot:activator="{ on, attrs }">
                   <v-btn v-bind="attrs" v-on="on" icon @click.stop="doUiAction('deleteItem', item)">
                     <v-progress-circular v-if="deleteItemPath === item.path" indeterminate :size="18" color="primary"></v-progress-circular>
@@ -184,8 +184,8 @@
     name: 'directory-list',
     template: '#directory-list',
     props: {
+      option: Object,
       fileIconList: Object,
-      roleId: String,
       currentPath: String,
       refreshing: Boolean,
       tableSearchText: String,
@@ -360,7 +360,7 @@
           data: {
             appData: {
               pageId: 'cloud_drive',
-              actionId: 'delete',
+              actionId: 'deleteDirOrFile',
               actionData: { path: this.deleteItemPath },
             }
           }
@@ -394,11 +394,7 @@
 </script>
 
 <style scoped>
-  .file-name{
-    vertical-align: middle;
-  }
-
-  /* ---------- table >>>>>>>>>> -------- */
+  /* ---------- table 加载进度条 >>>>>>>>>> -------- */
   .v-application .v-data-table .v-data-table__wrapper .v-data-table__progress {
     position: absolute;
     top: 0;
@@ -415,8 +411,8 @@
   /* ---------- <<<<<<<<<<< table -------- */
 
   /* ---------- tooltip >>>>>>>>>> -------- */
-  /* 
-  *bugfix: table第一行的tooltip被thead遮挡 
+  /*
+  *bugfix: table第一行的tooltip被thead遮挡
   */
   .v-tooltip__content {
     z-index: 12 !important;

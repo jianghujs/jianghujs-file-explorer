@@ -1,12 +1,12 @@
 <template id="file-upload">
-  <!-- 上传文件 >>>>>>>>>>>>> -->      
+  <!-- 上传文件 >>>>>>>>>>>>> -->
   <div>
-    <!-- 选择文件触发器[隐藏掉，用按钮触发] >>>>>>>>>>>>> -->        
+    <!-- 选择文件触发器[隐藏掉，用按钮触发] >>>>>>>>>>>>> -->
     <input v-show="false" ref="inputUpload" type="file" multiple @change="doUiAction('addFile', $event)"/>
     <!-- <<<<<<<<<<<<< 选择文件触发器 -->
 
-    <!-- 上传文件按钮 >>>>>>>>>>>>> -->        
-    <v-btn small v-if="currentPath" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="currentPath === '/'" class="ml-2">
+    <!-- 上传文件按钮 >>>>>>>>>>>>> -->
+    <v-btn small v-if="currentPath" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="currentPath === '/'" class="mr-2">
       <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
       <$ constantUiMap.btn.upload $>
     </v-btn>
@@ -14,7 +14,7 @@
 
     <!-- 上传文件弹窗 >>>>>>>>>>>>> -->
     <v-overlay v-if="isUploadDialogShown" style="z-index: 60;">
-      <v-card flat light class="mx-auto" :loading="isUploading" style="width: 600px;">
+      <v-card flat light class="jh-file-upload-dialog mx-auto" :loading="isUploading" style="width: 600px;">
         <!-- ✅header -->
         <v-toolbar flat dense dark style="background-color: #fff;">
           <div class="black--text ml-2" style="font-size: 16px;"><$ constantUiMap.btn.upload $><$ constantUiMap.btn.file $>
@@ -32,17 +32,17 @@
 
         <!-- ✅按钮区 -->
         <v-card-text>
-          <v-btn color="success" depressed @click="$refs.inputUpload.click()"
+          <v-btn color="success" small depressed @click="$refs.inputUpload.click()"
                  title="<$ constantUiMap.common.select $><$ constantUiMap.btn.file $>">
             <v-icon class="mr-1" small>mdi-file-plus</v-icon>
             <$ constantUiMap.common.select $><$ constantUiMap.btn.file $>
           </v-btn>
-          <v-btn depressed @click="doUiAction('uploadFileList')" class="ml-1" :disabled="!fileList || fileList.length === 0"
+          <v-btn small depressed @click="doUiAction('uploadFileList')" class="ml-1" :disabled="!fileList || fileList.length === 0"
                  title="<$ constantUiMap.btn.uploadAll $>">
             <v-icon class="mr-1" small>mdi-file-upload</v-icon>
             <$ constantUiMap.btn.uploadAll $>
           </v-btn>
-          <v-btn depressed @click="doUiAction('removeAllFile')" class="ml-1" :disabled="!fileList || fileList.length === 0"
+          <v-btn small depressed @click="doUiAction('removeAllFile')" class="ml-1" :disabled="!fileList || fileList.length === 0"
                  title="<$ constantUiMap.btn.removeAll $>">
             <v-icon class="mr-1" small>mdi-file-remove</v-icon>
             <$ constantUiMap.btn.removeAll $>
@@ -120,7 +120,7 @@
 
         //文件列表
         fileList: [],
-        
+
         //文件上传
         isUploadDialogShown: false,
         isUploading: false,
@@ -252,14 +252,10 @@
     },
   });
 </script>
-
-<style scoped>
-  ::v-deep .v-overlay__content {
-    width: 90%;
-    max-width: 500px;
+<style>
+@media screen and (max-width: 500px) {
+  .jh-file-upload-dialog {
+    max-width: 90vw;
   }
-  ::v-deep .v-overlay__content .files-list-wrapper {
-    max-height: 250px;
-    overflow-y: auto;
-  }
+}
 </style>

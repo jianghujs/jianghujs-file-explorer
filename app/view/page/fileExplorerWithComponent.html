@@ -19,7 +19,7 @@
 
       <!-- 页面主体内容 >>>>>>>>>>>>> -->
       <div class="jh-page-body-container px-8">
-        <file-browser role-id="teacher"></file-browser>
+        <file-browser :option="operationOption" @use-file="useFile"></file-browser>
       </div>
       <!-- <<<<<<<<<<<<< 页面主体内容 -->
 
@@ -65,11 +65,30 @@ new Vue({
       {text: '网盘', disabled: true,}
     ],
     isHelpPageDrawerShown: false,
+    // 操作开关（不写的属性，默认true）
+    operationOption: {
+      'createDir': true,
+      'markdown': true,
+      'upload': true,
+      'copy': true,
+      'copyPath': true,
+      'cut': true,
+      'clearRecycle': true,
+      'delete': true,
+      'edit': true,
+      'rename': true,
+      'use': true,
+    }
   }),
   async created() {},
-  methods: {}
+  methods: {
+    useFile(event) {
+      console.log('使用文件', event)
+    }
+  }
 })
 </script>
 
-<style></style>
+<style>
+</style>
 {% endblock %}

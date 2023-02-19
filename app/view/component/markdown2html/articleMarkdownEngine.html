@@ -110,6 +110,7 @@ class ArticleMarkdownEngine {
    * @return {Renderer} markedRenderer  返回marked的Renderer自定义对象
    */
   static markedRenderer(markdownToC, options) {
+    // docsify，自定义解析器
     const markedRenderer = new marked.Renderer();
     markdownToC = markdownToC || [];
 
@@ -150,7 +151,7 @@ class ArticleMarkdownEngine {
       return '<blockquote class="' + $class + '">\n' + quoteBegin + $quote + '</blockquote>\n';
     };
 
-    // marked 解析图片
+    // marked 解析图片（除了默认图片的markdown解析，扩展了audio,video,video_iframe的解析）
     markedRenderer.image = function(href, title, text) {
       const attr = '';
       const begin = '';
@@ -206,7 +207,7 @@ class ArticleMarkdownEngine {
       return begin + '<img src="' + href + '" title="' + title + '" alt="' + text + '" ' + attr + ' />' + end;
     };
 
-    // marked emoji 解析
+    // marked emoji 解析（从第三方网站返回图片数据）
     markedRenderer.emoji = function(text) {
 
       text = text.replace(ArticleMarkdownEngine.regexs.emojiDatetime, function($1) {
@@ -570,7 +571,7 @@ class ArticleMarkdownEngine {
 
     return markedRenderer;
   }
-
+  // markdown转html入口
   static md2html(markdownDoc) {
     // let markdownDoc = (ArticleMarkdownEngine.settings.markdown === '') ? saveTo.val() : ArticleMarkdownEngine.settings.markdown;
     const markdownToC = [];

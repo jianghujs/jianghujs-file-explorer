@@ -25,10 +25,9 @@ const actionDataScheme = Object.freeze({
     type: "object",
     additionalProperties: true,
     required: [],
-    properties: {
-    },
+    properties: {},
   },
-  list: {
+  getDirItemList: {
     type: "object",
     additionalProperties: true,
     required: ["path"],
@@ -99,7 +98,7 @@ const actionDataScheme = Object.freeze({
       path: {anyOf: [{type: "string"}, {type: "number"}]},
     },
   },
-  delete: {
+  deleteDirOrFile: {
     type: "object",
     additionalProperties: true,
     required: ["path"],
@@ -109,6 +108,7 @@ const actionDataScheme = Object.freeze({
   },
 });
 
+// 操作目录合法性检查
 function pathCheck(path) {
   if (path.indexOf("../") > -1) {
     throw new BizError(errorInfoEnum.path_invalid);
@@ -121,10 +121,8 @@ function pathCheck(path) {
 class CloudDriveService extends Service {
 
   async getUserCloudDriveList() {
-    const { actionData } = this.ctx.request.body.appData;
-    const { jianghuKnex, config } = this.app;
-    const { userInfo } = this.ctx;
-    const { userId } = userInfo;
+    const {actionData} = this.ctx.request.body.appData;
+    const {userInfo} = this.ctx;
     validateUtil.validate(actionDataScheme.getUserCloudDriveList, actionData);
     const cloudDriveList = [{
       groupId: "cloudDemo"
@@ -134,53 +132,53 @@ class CloudDriveService extends Service {
     };
   }
 
-  async checkStorage(groupStorage) {
-    const {config} = this.app;
-    const {uploadDir} = config;
+  async prepareCloudDriveStorage(groupStorage) {
+    const {config: {uploadDir}} = this.app;
     const cloudDrive = 'cloudDrive';
     const upload = nodePath.join(uploadDir);
     // 网盘根目录
     const targetPath = nodePath.join(upload, cloudDrive);
-    if(!await exists(targetPath)) {
+    if (!await exists(targetPath)) {
       await fsPromises.mkdir(targetPath, {recursive: true});
     }
     // 班级目录
     const groupPath = nodePath.join(targetPath, groupStorage);
-    if(!await exists(groupPath)) {
+    if (!await exists(groupPath)) {
       await fsPromises.mkdir(groupPath, {recursive: true});
     }
     // 班级的回收站目录
     const _recyclePath = nodePath.join(targetPath, groupStorage + '/_recycle');
-    if(!await exists(_recyclePath)) {
+    if (!await exists(_recyclePath)) {
       await fsPromises.mkdir(_recyclePath, {recursive: true});
     }
     return true;
   }
 
-  async list() {
+  // 获取目录下子项目列表（目录/文件）
+  async getDirItemList() {
     const actionData = this.ctx.request.body.appData.actionData;
-    validateUtil.validate(actionDataScheme.list, actionData);
+    validateUtil.validate(actionDataScheme.getDirItemList, actionData);
     const {cloudDriveDir} = this.app.config;
     let {path} = actionData;
-    if(path !== '/') {
-      await this.checkStorage(path.substring(1).split('/')[0]);
+    if (path !== '/') {
+      await this.prepareCloudDriveStorage(path.substring(1).split('/')[0]);
     }
     pathCheck(path);
 
     const userCloudDriveList = await this.getUserCloudDriveList()
     // 权限检查
-    if(path !== '/'){
-      const paths = path.split('/')
-      const hasPath = userCloudDriveList.rows.some(group => paths[1] === group.groupId)
-      if(!hasPath){
+    if (path !== '/') {
+      const pathList = path.split('/')
+      const hasPath = userCloudDriveList.rows.some(group => pathList[1] === group.groupId)
+      if (!hasPath) {
         throw new BizError(errorInfoEnum.path_no_permissions);
       }
     }
 
-    let dirs = [],
-      files = [];
+    let dirs = [];
+    let files = [];
 
-    if (path[path.length - 1] !== "/") {
+    if (!path.endsWith('/')) {
       path += "/";
     }
 
@@ -188,11 +186,10 @@ class CloudDriveService extends Service {
     let items = await readdir(targetPath, {
       withFileTypes: true,
     });
-
+    // 目录/文件基本信息补充
     for (let item of items) {
-      let isFile = item.isFile(),
-        isDir = item.isDirectory();
-
+      let isFile = item.isFile();
+      let isDir = item.isDirectory();
       if (!isFile && !isDir) {
         continue;
       }
@@ -208,10 +205,7 @@ class CloudDriveService extends Service {
         let fileStat = await stat(nodePath.join(cloudDriveDir, result.path));
         result.size = fileStat.size;
         result.extension = nodePath.extname(result.path).slice(1);
-        result.name = nodePath.basename(
-          result.path,
-          "." + result.extension
-        );
+        result.name = nodePath.basename(result.path, "." + result.extension);
         result.mtime = dayjs(fileStat.mtime).unix();
         files.push(result);
       } else {
@@ -222,13 +216,14 @@ class CloudDriveService extends Service {
 
     let rows = dirs.concat(files);
     // 过滤无权限数据
-    if(path === '/'){
-      rows = rows.filter(d => userCloudDriveList.rows.some(group => d.name === group.groupId))
+    if (path === '/') {
+      rows = rows.filter(row => userCloudDriveList.rows.some(group => row.name === group.groupId))
     }
 
     return {rows};
   }
 
+  // 创建目录
   async mkdir() {
     const actionData = this.ctx.request.body.appData.actionData;
     validateUtil.validate(actionDataScheme.mkdir, actionData);
@@ -239,6 +234,7 @@ class CloudDriveService extends Service {
     await fsPromises.mkdir(targetPath, {recursive: true});
   }
 
+  // 复制文件
   async copyFile() {
     const actionData = this.ctx.request.body.appData.actionData;
     const {cloudDriveDir} = this.app.config;
@@ -254,6 +250,7 @@ class CloudDriveService extends Service {
     await copyFile(fromPath, toPath);
   }
 
+  // 移动文件
   async moveFile() {
     const actionData = this.ctx.request.body.appData.actionData;
     const {cloudDriveDir} = this.app.config;
@@ -269,6 +266,7 @@ class CloudDriveService extends Service {
     await rename(fromPath, toPath);
   }
 
+  // 重命名文件
   async renameFile() {
     const actionData = this.ctx.request.body.appData.actionData;
     const {cloudDriveDir} = this.app.config;
@@ -286,9 +284,10 @@ class CloudDriveService extends Service {
     await rename(targetPath, newFilenamePath);
   }
 
-  async delete() {
+  // 删除目录/文件
+  async deleteDirOrFile() {
     const actionData = this.ctx.request.body.appData.actionData;
-    validateUtil.validate(actionDataScheme.delete, actionData);
+    validateUtil.validate(actionDataScheme.deleteDirOrFile, actionData);
     const {cloudDriveDir} = this.app.config;
     const {path} = actionData;
     pathCheck(path);
@@ -332,8 +331,8 @@ class CloudDriveService extends Service {
     validateUtil.validate(actionDataScheme.saveMarkdown, actionData);
     const {content, path, name} = actionData;
     const {cloudDriveDir} = this.app.config;
-    const { userInfo } = this.ctx;
-    const { userId } = userInfo;
+    const {userInfo} = this.ctx;
+    const {userId} = userInfo;
     const targetPath = nodePath.join(cloudDriveDir, path);
     const groupStorage = path.substring(1, path.indexOf('/', 1));
     const recycleBackupsPath = nodePath.join(cloudDriveDir, groupStorage, '_recycle', `${+new Date()}_${userId}_${name}.md`);

@@ -1,10 +1,10 @@
 <template id="create-new-directory">
-  <!-- 创建文件夹 >>>>>>>>>>>>> -->   
+  <!-- 创建文件夹 >>>>>>>>>>>>> -->
   <v-menu v-if="currentPath" v-model="isNewFolderDialogShown" :close-on-content-click="false" :nudge-width="200" offset-y>
-    <!-- ✅创建文件夹按钮 -->     
+    <!-- ✅创建文件夹按钮 -->
     <template v-slot:activator="{ on }">
       <span>
-        <v-btn small depressed color="success" v-on="on" :disabled="currentPath === '/'">
+        <v-btn class="mr-2" small depressed color="success" v-on="on" :disabled="currentPath === '/'">
           <v-icon class="mr-1" small>mdi-folder-multiple-plus</v-icon>
           <$ constantUiMap.btn.createFolder $>
         </v-btn>
