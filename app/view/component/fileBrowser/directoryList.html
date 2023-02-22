@@ -26,11 +26,11 @@
             <span class="ml-2">{{ item.basename.endsWith('_recycle') ? '回收站' : item.basename }}</span>
           </div>
           <!--✅文件-->
-          <div v-else @click="doUiAction('openDirectoryOrFile', item.path)" role="button">
+          <div v-else @click="doUiAction('openDirectoryOrFile', item.path)" role="button" class="jh-file-name-wrapper">
             <template>
               <!--✅图片-->
               <v-avatar tile v-if="checkIsImg(item.basename)" size="25">
-                <v-img :src="`/<$ ctx.app.config.appId $>/upload/cloudDrive${currentPath}/${item.basename}`"></v-img>
+                <v-img :src="`/<$ ctx.app.config.appId $>/upload/${rootDirectory}${currentPath}/${item.basename}`"></v-img>
               </v-avatar>
               <!--✅其他文件-->
               <v-icon v-else>{{ fileIconList[item.extension.toLowerCase()] || fileIconList['other'] }}</v-icon>
@@ -116,13 +116,13 @@
                 <!--✅重命名弹窗-->
                 <v-card>
                   <v-card-text>
-                    <v-text-field label="<$ constantUiMap.btn.fileName $>" v-model="renameFileItemNewName" hide-details color="success" class="jh-v-input" dense filled single-line></v-text-field>
+                    <v-text-field label="<$ constantUiMap.fileExplorer.fileName $>" v-model="renameFileItemNewName" hide-details color="success" class="jh-v-input" dense filled single-line></v-text-field>
                   </v-card-text>
                   <v-card-actions class="pa-4 pt-0">
                     <v-spacer></v-spacer>
-                    <v-btn @click="closeRenameFileMenu" small depressed><$ constantUiMap.btn.cancel $></v-btn>
+                    <v-btn @click="closeRenameFileMenu" small depressed><$ constantUiMap.fileExplorer.cancel $></v-btn>
                     <v-btn small depressed color="success" :disabled="!renameFileItemNewName" @click="doUiAction('renameFile')">
-                      <$ constantUiMap.btn.rename $>
+                      <$ constantUiMap.fileExplorer.rename $>
                     </v-btn>
                   </v-card-actions>
                 </v-card>
@@ -189,6 +189,7 @@
       currentPath: String,
       refreshing: Boolean,
       tableSearchText: String,
+      rootDirectory: String,
       itemList: []
     },
     data() {
@@ -319,7 +320,7 @@
         }
       },
       async doRenameFile() {
-        window.vtoast.loading("<$ constantUiMap.btn.fileRename $>");
+        window.vtoast.loading("<$ constantUiMap.fileExplorer.fileRename $>");
         await window.jianghuAxios({
           data: {
             appData: {
@@ -332,7 +333,7 @@
             }
           }
         })
-        window.vtoast.success('<$ constantUiMap.btn.renamedSuccess $>');
+        window.vtoast.success('<$ constantUiMap.fileExplorer.fileRenameSuccess $>');
       },
       closeRenameFileMenu(item) {
         this.isRenameFileMenuShown = false;
@@ -346,7 +347,7 @@
         this.deleteItem = _.cloneDeep(funObj);
       },
       async confirmDeleteItemDialog() {
-        if (await window.confirmDialog({ title:  '删除', content: `确定删除【${this.deleteItem.basename}】${this.deleteItem.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}吗？`}) === false) {
+        if (await window.confirmDialog({ title:  '删除', content: `确定删除【${this.deleteItem.basename}】${this.deleteItem.type === "dir" ? "<$ constantUiMap.fileExplorer.folder $>" : "<$ constantUiMap.fileExplorer.file $>"}吗？`}) === false) {
           throw new Error("[confirmDeleteItemDialog] 否");
         }
       },
@@ -355,7 +356,7 @@
         this.deleteItemPath = path;
       },
       async doDeleteItem() {
-        await window.vtoast.loading(`删除${this.deleteItem.type === "dir" ? "<$ constantUiMap.btn.folder $>" : "<$ constantUiMap.btn.file $>"}文件`);
+        await window.vtoast.loading(`删除${this.deleteItem.type === "dir" ? "<$ constantUiMap.fileExplorer.folder $>" : "<$ constantUiMap.fileExplorer.file $>"}文件`);
         await window.jianghuAxios({
           data: {
             appData: {
@@ -394,6 +395,15 @@
 </script>
 
 <style scoped>
+  /* ---------- 定制样式 >>>>>>>>>> -------- */
+  /*
+  *bugfix: 移动端文件名换行挤在一起
+  */
+  .jh-file-name-wrapper{
+    white-space: nowrap;
+  }
+  /* ---------- <<<<<<<<<<< 定制样式 -------- */
+
   /* ---------- table 加载进度条 >>>>>>>>>> -------- */
   .v-application .v-data-table .v-data-table__wrapper .v-data-table__progress {
     position: absolute;
@@ -408,7 +418,7 @@
   .v-application .v-data-table .v-data-table__wrapper .v-data-table__progress .v-progress-linear {
     max-width: 100% !important;
   }
-  /* ---------- <<<<<<<<<<< table -------- */
+  /* ---------- <<<<<<<<<<< table 加载进度条 -------- */
 
   /* ---------- tooltip >>>>>>>>>> -------- */
   /*

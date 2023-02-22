@@ -127,17 +127,14 @@ class CloudDriveService extends Service {
     const cloudDriveList = [{
       groupId: "cloudDemo"
     }];
-    return {
-      rows: cloudDriveList
-    };
+    return cloudDriveList;
   }
 
-  async prepareCloudDriveStorage(groupStorage) {
+  async prepareCloudDriveStorage(groupStorage, rootDirectory) {
     const {config: {uploadDir}} = this.app;
-    const cloudDrive = 'cloudDrive';
     const upload = nodePath.join(uploadDir);
     // 网盘根目录
-    const targetPath = nodePath.join(upload, cloudDrive);
+    const targetPath = nodePath.join(upload, rootDirectory);
     if (!await exists(targetPath)) {
       await fsPromises.mkdir(targetPath, {recursive: true});
     }
@@ -159,21 +156,22 @@ class CloudDriveService extends Service {
     const actionData = this.ctx.request.body.appData.actionData;
     validateUtil.validate(actionDataScheme.getDirItemList, actionData);
     const {cloudDriveDir} = this.app.config;
-    let {path} = actionData;
+    let {path, accessibleFolder, rootDirectory} = actionData;
     if (path !== '/') {
-      await this.prepareCloudDriveStorage(path.substring(1).split('/')[0]);
+      await this.prepareCloudDriveStorage(path.substring(1).split('/')[0], rootDirectory);
     }
     pathCheck(path);
 
-    const userCloudDriveList = await this.getUserCloudDriveList()
+    const userCloudDriveList = accessibleFolder ? accessibleFolder : await this.getUserCloudDriveList();
     // 权限检查
     if (path !== '/') {
       const pathList = path.split('/')
-      const hasPath = userCloudDriveList.rows.some(group => pathList[1] === group.groupId)
+      const hasPath = userCloudDriveList.some(group => pathList[1] === group.groupId)
       if (!hasPath) {
         throw new BizError(errorInfoEnum.path_no_permissions);
       }
     }
+    
 
     let dirs = [];
     let files = [];
@@ -217,7 +215,7 @@ class CloudDriveService extends Service {
     let rows = dirs.concat(files);
     // 过滤无权限数据
     if (path === '/') {
-      rows = rows.filter(row => userCloudDriveList.rows.some(group => row.name === group.groupId))
+      rows = rows.filter(row => userCloudDriveList.some(group => row.name === group.groupId))
     }
 
     return {rows};

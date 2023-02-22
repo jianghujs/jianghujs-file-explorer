@@ -9,7 +9,7 @@
       <!--根目录-->
       <v-breadcrumbs-item :disabled="currentPath === '/'" @click="doUiAction('changePath', '/')" role="button">
         <v-icon class="mr-1" color="success">mdi-cloud-circle</v-icon>
-        <span class="text-subtitle-2 font-weight-medium success--text">网盘</span>
+        <span class="text-subtitle-2 font-weight-medium success--text">{{rootDirectoryName}}</span>
       </v-breadcrumbs-item>
       <!--路径目录-->
       <v-breadcrumbs-item
@@ -33,6 +33,7 @@
     template: '#breadcrumbs',
     props: {
       currentPath: String,
+      rootDirectoryName: String,
       currentPathIsDir: {
         type: Boolean,
         default: false
@@ -69,7 +70,7 @@
 
       // ---------- 生成路径列表 uiAction >>>>>>>>>> --------
       buildPathList() {
-        if (!_.isEmpty(this.currentPath)){
+        if (!_.isEmpty(this.currentPath)) {
           let path = "/";
           let pathItemList = this.currentPath.split("/").filter(item => !_.isEmpty(item));
           pathItemList = pathItemList.map((item, index) => {

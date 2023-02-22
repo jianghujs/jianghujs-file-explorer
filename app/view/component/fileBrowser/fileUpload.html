@@ -8,52 +8,51 @@
     <!-- 上传文件按钮 >>>>>>>>>>>>> -->
     <v-btn small v-if="currentPath" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="currentPath === '/'" class="mr-2">
       <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
-      <$ constantUiMap.btn.upload $>
+      <$ constantUiMap.fileExplorer.upload $>
     </v-btn>
     <!-- <<<<<<<<<<<<< 上传文件按钮 -->
 
     <!-- 上传文件弹窗 >>>>>>>>>>>>> -->
-    <v-overlay v-if="isUploadDialogShown" style="z-index: 60;">
-      <v-card flat light class="jh-file-upload-dialog mx-auto" :loading="isUploading" style="width: 600px;">
+    <v-overlay v-if="isUploadDialogShown" z-index="60">
+      <v-card flat light class="jh-file-upload-dialog mx-auto" :loading="isUploading">
         <!-- ✅header -->
-        <v-toolbar flat dense dark style="background-color: #fff;">
-          <div class="black--text ml-2" style="font-size: 16px;"><$ constantUiMap.btn.upload $><$ constantUiMap.btn.file $>
+        <v-toolbar flat dense>
+          <div class="black--text text-subtitle-1 ml-2"><$ constantUiMap.fileExplorer.upload $><$ constantUiMap.fileExplorer.file $>
           </div>
           <v-spacer></v-spacer>
           <v-toolbar-items>
             <v-btn text @click="isUploadDialogShown = false" >
-              <v-icon class="black--text" style="font-size: 18px;">mdi-close</v-icon>
+              <v-icon class="black--text" size="18">mdi-close</v-icon>
             </v-btn>
           </v-toolbar-items>
         </v-toolbar>
 
         <!-- ✅分隔线 -->
-        <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
+        <v-divider class="jh-file-upload-dialog-divider"></v-divider>
 
         <!-- ✅按钮区 -->
         <v-card-text>
           <v-btn color="success" small depressed @click="$refs.inputUpload.click()"
-                 title="<$ constantUiMap.common.select $><$ constantUiMap.btn.file $>">
+                 title="<$ constantUiMap.common.select $><$ constantUiMap.fileExplorer.file $>">
             <v-icon class="mr-1" small>mdi-file-plus</v-icon>
-            <$ constantUiMap.common.select $><$ constantUiMap.btn.file $>
+            <$ constantUiMap.common.select $><$ constantUiMap.fileExplorer.file $>
           </v-btn>
           <v-btn small depressed @click="doUiAction('uploadFileList')" class="ml-1" :disabled="!fileList || fileList.length === 0"
-                 title="<$ constantUiMap.btn.uploadAll $>">
+                 title="<$ constantUiMap.fileExplorer.uploadAll $>">
             <v-icon class="mr-1" small>mdi-file-upload</v-icon>
-            <$ constantUiMap.btn.uploadAll $>
+            <$ constantUiMap.fileExplorer.uploadAll $>
           </v-btn>
-          <v-btn small depressed @click="doUiAction('removeAllFile')" class="ml-1" :disabled="!fileList || fileList.length === 0"
-                 title="<$ constantUiMap.btn.removeAll $>">
+          <v-btn small depressed @click="doUiAction('removeAllFile')" class="ml-sm-1 mt-1 mt-sm-0" :disabled="!fileList || fileList.length === 0"
+                 title="<$ constantUiMap.fileExplorer.removeAll $>">
             <v-icon class="mr-1" small>mdi-file-remove</v-icon>
-            <$ constantUiMap.btn.removeAll $>
+            <$ constantUiMap.fileExplorer.removeAll $>
           </v-btn>
         </v-card-text>
 
         <!-- ✅文件列表 -->
         <v-card-text v-if="fileList.length" class="py-0 files-list-wrapper">
           <v-list v-if="fileList.length">
-            <v-list-item v-for="(file, index) in fileList" :key="index"
-                         style="background-color: #f5f8fa;border-radius: 6px;" class="mb-2">
+            <v-list-item v-for="(file, index) in fileList" :key="index" class="mb-2">
               <v-list-item-avatar>
                 <v-img v-if="file.preview" :src="file.preview"></v-img>
                 <v-icon
@@ -69,7 +68,7 @@
               </v-list-item-content>
               <v-list-item-action class="d-flex">
                 <v-btn icon @click="doUiAction('removeFile', index)"small>
-                  <v-icon samll style="font-size: 16px;">mdi-close</v-icon>
+                  <v-icon small size="16">mdi-close</v-icon>
                 </v-btn>
               </v-list-item-action>
             </v-list-item>
@@ -82,17 +81,17 @@
         </v-card-text>
 
         <!-- ✅分隔线 -->
-        <v-divider style="border-color: #eff2f5;opacity:0.8;"></v-divider>
+        <v-divider class="jh-file-upload-dialog-divider"></v-divider>
 
         <!-- ✅footer -->
-        <v-card-text class="py-3 d-flex justify-space-between" style="color:#A1A5B7;">
+        <v-card-text class="py-3 d-flex justify-space-between jh-file-upload-dialog-footer">
           <div>
-            <span><$ constantUiMap.btn.uploadTo $>:</span>
+            <span><$ constantUiMap.fileExplorer.uploadTo $>:</span>
             <span class="ml-2">{{ currentPath }}</span>
           </div>
           <div>
-            <span v-if="maxUploadFileCount"><$ constantUiMap.btn.maxFilesCount $>: {{ maxUploadFileCount }}</span>
-            <span v-if="maxUploadFileSize"><$ constantUiMap.btn.maxFileSize $>: {{ formatBytes(maxUploadFileSize) }}</span>
+            <span v-if="maxUploadFileCount"><$ constantUiMap.fileExplorer.maxFileCount $>: {{ maxUploadFileCount }}</span>
+            <span v-if="maxUploadFileSize"><$ constantUiMap.fileExplorer.maxFileSize $>: {{ formatBytes(maxUploadFileSize) }}</span>
           </div>
         </v-card-text>
       </v-card>
@@ -110,6 +109,7 @@
     props: {
       currentPath: String,
       fileIconList: Object,
+      rootDirectory: String,
     },
     data() {
       return {
@@ -212,16 +212,16 @@
         this.uploadFileItemName = funObj.name;
       },
       async doUploadFile() {
-        window.vtoast.loading(`${this.uploadFileItemName} <$ constantUiMap.btn.uploadProgress $>: 0.00%`);
+        window.vtoast.loading(`${this.uploadFileItemName} <$ constantUiMap.fileExplorer.uploadProgress $>: 0.00%`);
         await window.jianghuAxios.httpUploadByStream({
           file: this.uploadFileItem,
           filenameStorage: this.uploadFileItemName,
-          fileDirectory: '/cloudDrive' + this.currentPath,
+          fileDirectory: `/${this.rootDirectory}${this.currentPath}`,
           onProgress: (total, loaded) => {
             this.progress = Number((loaded * 100 / total).toFixed(2));
-            window.vtoast.loading(`${this.uploadFileItemName} <$ constantUiMap.btn.uploadProgress $>: ${this.progress}%`);
+            window.vtoast.loading(`${this.uploadFileItemName} <$ constantUiMap.fileExplorer.uploadProgress $>: ${this.progress}%`);
             if (loaded === total) {
-              window.vtoast.success(`${this.uploadFileItemName} <$ constantUiMap.btn.uploadProgress $>: 100%`);
+              window.vtoast.success(`${this.uploadFileItemName} <$ constantUiMap.fileExplorer.uploadProgress $>: 100%`);
             }
           }
         })
@@ -252,10 +252,30 @@
     },
   });
 </script>
+
 <style>
-@media screen and (max-width: 500px) {
+  /* ---------- 上传文件弹窗 >>>>>>>>>> -------- */
   .jh-file-upload-dialog {
-    max-width: 90vw;
+    width: 600px;
   }
-}
+  .jh-file-upload-dialog-divider{
+    border-color: #eff2f5 !important;
+    opacity:0.8;
+  }
+  .jh-file-upload-dialog-footer{
+    color:#A1A5B7 !important;
+  }
+  .jh-file-upload-dialog .v-list-item{
+    background-color: #f5f8fa;
+    border-radius: 6px;
+  }
+  /* ---------- <<<<<<<<<<< 上传文件弹窗 -------- */
+  
+  /* ---------- 移动端 >>>>>>>>>> -------- */
+  @media screen and (max-width: 500px) {
+    .jh-file-upload-dialog {
+      max-width: 90vw;
+    }
+  }
+  /* ---------- <<<<<<<<<<< 移动端 -------- */
 </style>

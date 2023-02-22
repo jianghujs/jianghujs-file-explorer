@@ -19,7 +19,13 @@
 
       <!-- 页面主体内容 >>>>>>>>>>>>> -->
       <div class="jh-page-body-container px-8">
-        <file-browser :option="operationOption" @use-file="useFile"></file-browser>
+        <file-browser
+          :operation-config="operationConfig"
+          :accessible-folder="accessibleFolder"
+          :access-path="accessPath"
+          :root-directory="rootDirectory"
+          :root-directory-name="rootDirectoryName"
+          @use-file="useFile"></file-browser>
       </div>
       <!-- <<<<<<<<<<<<< 页面主体内容 -->
 
@@ -65,8 +71,10 @@ new Vue({
       {text: '网盘', disabled: true,}
     ],
     isHelpPageDrawerShown: false,
-    // 操作开关（不写的属性，默认true）
-    operationOption: {
+
+    // ---------- file-browser 配置 >>>>>>>>>>> --------
+    /* 操作开关（不写的属性，默认true）*/
+    operationConfig: { 
       'createDir': true,
       'markdown': true,
       'upload': true,
@@ -78,7 +86,13 @@ new Vue({
       'edit': true,
       'rename': true,
       'use': true,
-    }
+    },
+
+    accessibleFolder: [{ groupId: "cloudDemo" }],
+    accessPath: "/cloudDemo/",
+    rootDirectory:  "cloudDrive",
+    rootDirectoryName:  "网盘",
+    // ---------- <<<<<<<<<<< file-browser 配置 --------
   }),
   async created() {},
   methods: {

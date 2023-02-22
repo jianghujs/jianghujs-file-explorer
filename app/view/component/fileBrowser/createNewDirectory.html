@@ -6,21 +6,21 @@
       <span>
         <v-btn class="mr-2" small depressed color="success" v-on="on" :disabled="currentPath === '/'">
           <v-icon class="mr-1" small>mdi-folder-multiple-plus</v-icon>
-          <$ constantUiMap.btn.createFolder $>
+          <$ constantUiMap.fileExplorer.createFolder $>
         </v-btn>
       </span>
     </template>
     <!--✅创建文件夹弹窗-->
     <v-card>
       <v-card-text class="pb-0">
-        <v-text-field color="success" label="<$ constantUiMap.btn.fileName $>" v-model="newFolderName" hide-details class="jh-v-input" dense filled single-line></v-text-field>
+        <v-text-field color="success" label="<$ constantUiMap.fileExplorer.fileName $>" v-model="newFolderName" hide-details class="jh-v-input" dense filled single-line></v-text-field>
       </v-card-text>
       <v-card-actions class="px-4">
         <v-spacer></v-spacer>
-        <v-btn @click="doUiAction('cancleCreate')" :disabled="isDirectoryCreating" depressed small><$ constantUiMap.btn.cancel $></v-btn>
+        <v-btn @click="doUiAction('cancleCreate')" :disabled="isDirectoryCreating" depressed small><$ constantUiMap.fileExplorer.cancel $></v-btn>
         <v-btn color="success" :disabled="!newFolderName || isDirectoryCreating" depressed @click="doUiAction('createDirectory')" small>
           <v-progress-circular v-if="isDirectoryCreating" indeterminate :size="18" color="primary"></v-progress-circular>
-          {{isDirectoryCreating ? '正在创建' : '<$ constantUiMap.btn.create $>'}}
+          {{isDirectoryCreating ? '正在创建' : '<$ constantUiMap.fileExplorer.create $>'}}
         </v-btn>
       </v-card-actions>
     </v-card>

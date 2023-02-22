@@ -52,10 +52,11 @@ Vue.component("article-query-template", {
 
   methods: {
     async getArticleList(paramObj) {
+      const pathname = location.pathname.split('/');
       const result = await window.jianghuAxios({
         data: {
           appData: {
-            pageId: 'home_content',
+            pageId: pathname[pathname.length - 1],
             actionId: "selectItemList",
             actionData: paramObj
           }
