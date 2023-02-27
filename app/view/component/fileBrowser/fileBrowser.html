@@ -36,7 +36,7 @@
       <!-- ✅分隔 -->
       <v-spacer></v-spacer>
       <!--✅搜索 -->
-      <v-col cols="12" xs="8" sm="4" md="3" xl="2" class="pa-0 mt-xs-2">
+      <v-col cols="12" xs="8" sm="4" md="3" xl="2" class="pa-0">
         <v-text-field
           color="success" v-model="tableSearchText" prefix="搜索：" class="jh-v-input" dense filled
           single-line></v-text-field>
@@ -55,34 +55,37 @@
       </breadcrumbs>
       <!-- ✅分隔 -->
       <v-spacer></v-spacer>
-      <template v-if="currentPathIsDir">
-        <v-row class="jh-directory-info ma-0 pa-0 justify-end mt-xs-2">
+      <template>
+        <!--✅文件夹操作-->
+        <v-row v-if="currentPathIsDir" class="ma-0 mt-1 mt-sm-0 justify-end align-center">
           <!--✅目录下文件/文件夹总数 -->
           <v-chip color="green" text-color="white" small>
             {{ totalCount }} items
           </v-chip>
-          <!-- ✅数据刷新状态 -->
+          <!-- ✅刷新目录 -->
           <v-btn icon @click="doUiAction('getDirectoryData')" small>
             <v-progress-circular indeterminate v-if="isRefreshDirectory" :size="20" color="primary"></v-progress-circular>
             <v-icon v-else>mdi-refresh-circle</v-icon>
           </v-btn>
         </v-row>
+        <!--✅文件操作-->
+        <v-row v-if="!currentPathIsDir && (operation.copyPath || operation.use)" class="ma-0 mt-1 mt-sm-0 justify-end align-center">
+          <!-- ✅复制路径 -->
+          <template v-if="operation.copyPath">
+            <v-btn class="ml-2" small depressed color="success" @click="doUiAction('copyPath')">
+              <v-icon class="mr-1" small>mdi-content-copy</v-icon>
+              <$ constantUiMap.fileExplorer.copyPath $>
+            </v-btn>
+          </template>
+          <!-- ✅使用 -->
+          <template v-if="operation.use">
+            <v-btn small class="ml-2" depressed color="success" @click="doUiAction('useFile')">
+              <v-icon class="mr-1" small>mdi-check</v-icon>
+              <$ constantUiMap.fileExplorer.useFile $>
+            </v-btn>
+          </template>
+        </v-row>
       </template>
-      <!--✅复制路径-->
-      <v-row v-if="!currentPathIsDir && (operation.copyPath || operation.use)" class="justify-end jh-current-file-operation">
-        <template v-if="operation.copyPath">
-          <v-btn class="mr-2" small depressed color="success" @click="doUiAction('copyPath')">
-            <v-icon class="mr-1" small>mdi-content-copy</v-icon>
-            <$ constantUiMap.fileExplorer.copyPath $>
-          </v-btn>
-        </template>
-        <template v-if="operation.use">
-          <v-btn class="mr-2" small depressed color="success" @click="doUiAction('useFile')">
-            <v-icon class="mr-1" small>mdi-check</v-icon>
-            <$ constantUiMap.fileExplorer.useFile $>
-          </v-btn>
-        </template>
-      </v-row>
     </v-row>
     <!-- <<<<<<<<<<<<< 路径导航栏 -->
 
@@ -453,28 +456,9 @@
 
 
 <style>
-  .jh-directory-info .v-btn {
-    transform: translateY(-1.5px);
-  }
-
   @media screen and (max-width: 500px) {
-    .v-application .mt-xs-2 {
-      margin-top: 8px !important;
-    }
-
     .v-data-table > .v-data-table__wrapper > table > tbody > tr > td:not(:first-child) {
       white-space: nowrap !important;
-    }
-
-    .jh-directory-info {
-      position: fixed;
-      top: 69px;
-      right: 10px;
-    }
-    .jh-current-file-operation {
-      position: fixed;
-      top: 88px;
-      right: 20px;
     }
   }
 </style>
