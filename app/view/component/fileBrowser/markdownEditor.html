@@ -76,9 +76,9 @@
 </template>
 
 <!-- 加载页面静态资源 >>>>>>>>>>>>> -->
-<link rel="stylesheet" href="/<$ ctx.app.config.appId $>/public/plugin/editor.md/css/editormd.min.css"/>
+<link rel="stylesheet" href="/<$ ctx.app.config.appId $>/public/plugins/editor.md/css/editormd.min.css"/>
 <script src="/<$ ctx.app.config.appId $>/public/lib/jquery/jquery.min.js"></script>
-<script src="/<$ ctx.app.config.appId $>/public/plugin/editor.md/editormd.js"></script>
+<script src="/<$ ctx.app.config.appId $>/public/plugins/editor.md/editormd.js"></script>
 <!-- <<<<<<<<<<<<< 加载页面静态资源 -->
 
 <script>
@@ -170,7 +170,7 @@
               watch: false,
               saveHTMLToTextarea: true,    // 保存 HTML 到 Textarea
               htmlDecode: "style,script,iframe|on*",
-              path: '/<$ ctx.app.config.appId $>/public/plugin/editor.md/lib/',
+              path: '/<$ ctx.app.config.appId $>/public/plugins/editor.md/lib/',
               toolbarIcons: Object.freeze([
                 "undo", "redo", "|",
                 "watch",
