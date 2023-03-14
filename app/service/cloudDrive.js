@@ -1,24 +1,19 @@
 const Service = require("egg").Service;
-const _ = require("lodash");
 const validateUtil = require("@jianghujs/jianghu/app/common/validateUtil");
-const fileUtil = require('@jianghujs/jianghu/app/common/fileUtil');
 const {BizError, errorInfoEnum} = require("../constant/error");
 const dayjs = require("dayjs");
 const fs = require("fs");
-const os = require("os"),
-  nodePath = require("path"),
+const nodePath = require("path"),
   fsPromises = require("fs").promises,
   readdir = fsPromises.readdir,
   stat = fsPromises.stat,
   rename = fsPromises.rename,
   unlink = fsPromises.unlink,
   lstat = fsPromises.lstat,
+  copyFile = fsPromises.copyFile,
   util = require("util"),
   rimraf = util.promisify(require("rimraf")),
-  exists = util.promisify(fs.exists),
-  copyFile = util.promisify(fs.copyFile);
-const {tableEnum} = require("../constant/constant");
-const path = require("path");
+  exists = util.promisify(fs.exists);
 
 const actionDataScheme = Object.freeze({
   getUserCloudDriveList: {
