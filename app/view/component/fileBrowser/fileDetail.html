@@ -1,0 +1,152 @@
+<template id="file-detail">
+  <!-- 文件详情 >>>>>>>>>>>>> -->
+  <v-card class="jh-file-detail-wrapper" flat>
+    <v-card-text>
+      <!--✅markdown-->
+      <div v-if="fileType === 'markdown'" class="jh-markdown-wrapper">
+        <!--✅内容-->
+        <md2html v-if="markdownContent" :article-content="markdownContent"></md2html>
+        <!--✅加载状态-->
+        <div v-else class="text-center pa-10">
+          <v-progress-circular indeterminate :size="30" color="primary"></v-progress-circular>
+          <span>加载中</span>
+        </div>
+      </div>
+      <!--✅文件-->
+      <div v-else class="text-center jh-file-wrapper">
+        <!--✅图片-->
+        <v-img
+          v-if="fileType === 'image'" min-width="30" min-height="30"
+          :src="`/<$ ctx.app.config.appId $>/upload/${rootDirectory}${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
+          class="d-inline-block"
+          @click="doUiAction('openFile', `/<$ ctx.app.config.appId $>/upload/${rootDirectory}${currentPath}?v=${new Date().getTime()}`)">
+        </v-img>
+        <!--✅视频-->
+        <video
+          v-if="fileType === 'video'" width="80%" min-width="30" min-height="30"
+          :src="`/<$ ctx.app.config.appId $>/upload/${rootDirectory}${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
+          class="d-inline-block" controls>
+          <source :src="`/<$ ctx.app.config.appId $>/upload/${rootDirectory}${currentPath}?v=${new Date().getTime()}`" type="video/mp4">
+        </video>
+        <!--✅音频-->
+        <audio
+          v-if="fileType === 'audio'" min-width="30" min-height="30"
+          :src="`/<$ ctx.app.config.appId $>/upload/${rootDirectory}${currentPath}?v=${new Date().getTime()}`" :key="currentPath"
+          class="my-10" controls>
+          <source :src="`/<$ ctx.app.config.appId $>/upload/${rootDirectory}${currentPath}?v=${new Date().getTime()}`" type="audio/mpeg">
+        </audio>
+      </div>
+      <!--✅路径-->
+      <div class="text-center mt-4"><$ constantUiMap.fileExplorer.file $>：{{ `${host}/<$ ctx.app.config.appId $>/upload${rootDirectory}${currentPath}` }}</div>
+    </v-card-text>
+  </v-card>
+  <!-- <<<<<<<<<<<<< 文件详情 -->
+</template>
+
+<script>
+  Vue.component("file-detail", {
+    vuetify: new Vuetify(),
+    name: 'file-detail',
+    template: '#file-detail',
+    props: {
+      currentPath: String,
+      option: Object,
+      rootDirectory: String,
+    },
+    data: () => ({
+      host: window.location.host,
+      markdownContent: null
+    }),
+    created() {
+      if (this.fileType === 'markdown') {
+        this.doUiAction('getMarkdownContent')
+      }
+    },
+    mounted() {
+      this.fixedDetailWrapperHeight();
+    },
+    computed: {
+      fileType() {
+        const ext = this.currentPath.substring(this.currentPath.lastIndexOf('.') + 1);
+        if (ext) {
+          if (['jpg', 'jpeg', 'png', 'gif', 'ico', 'svg'].includes(ext.toLowerCase())) {
+            return 'image';
+          }
+          if (['mp4'].includes(ext.toLowerCase())) {
+            return 'video';
+          }
+          if (['mp3', 'wav'].includes(ext.toLowerCase())) {
+            return 'audio';
+          }
+          if (['md'].includes(ext.toLowerCase())) {
+            return 'markdown';
+          }
+        }
+        return '';
+      }
+    },
+    methods: {
+      async doUiAction(uiActionId, uiActionData) {
+        switch (uiActionId) {
+          case 'getMarkdownContent':
+            await this.getMarkdownContent();
+            break;
+          case 'openFile':
+            await this.openFile(uiActionData);
+            break;
+          default:
+            console.error("[doUiAction] uiActionId not find", { uiActionId });
+            break;
+        }
+      },
+
+      // ---------- 获取markdown文件的内容 uiAction >>>>>>>>>> --------
+      async getMarkdownContent() {
+        this.markdownContent = (await window.jianghuAxios({
+          data: {
+            appData: {
+              pageId: 'cloud_drive',
+              actionId: 'getMarkdownContent',
+              actionData: {
+                path: this.currentPath
+              },
+            }
+          }
+        })).data.appData.resultData.mdContent;
+      },
+      // ---------- <<<<<<<<<<< 获取markdown文件的内容 uiAction  --------
+
+      // ---------- 打开文件 uiAction >>>>>>>>>> --------
+      openFile(path) {
+        window.open(path)
+      },
+      // ---------- <<<<<<<<<<< 打开文件 uiAction  --------
+
+      // ---------- 公共方法 >>>>>>>>>> --------
+      fixedDetailWrapperHeight() {
+        const detailWrapper = document.querySelector('.jh-file-detail-wrapper');
+        detailWrapper.style.height = window.innerHeight - detailWrapper.getBoundingClientRect().y + 'px';
+      }
+      // ---------- <<<<<<<<<<< 公共方法  --------
+    }
+  });
+</script>
+
+<style scoped>
+  .jh-file-detail-wrapper {
+    width: 100%;
+  }
+  .jh-file-detail-wrapper .v-card__text {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .jh-markdown-wrapper,
+  .jh-file-wrapper {
+    overflow: auto;
+    flex: 1;
+  }
+  .jh-file-wrapper v-image {
+    cursor: pointer;
+  }
+</style>

@@ -1,0 +1,97 @@
+<template id="create-new-directory">
+  <!-- 创建文件夹 >>>>>>>>>>>>> -->
+  <v-menu v-if="currentPath" v-model="isNewFolderDialogShown" :close-on-content-click="false" :nudge-width="200" offset-y>
+    <!-- ✅创建文件夹按钮 -->
+    <template v-slot:activator="{ on }">
+      <span>
+        <v-btn class="mr-2" small depressed color="success" v-on="on" :disabled="currentPath === '/'">
+          <v-icon class="mr-1" small>mdi-folder-multiple-plus</v-icon>
+          <$ constantUiMap.fileExplorer.createFolder $>
+        </v-btn>
+      </span>
+    </template>
+    <!--✅创建文件夹弹窗-->
+    <v-card>
+      <v-card-text class="pb-0">
+        <v-text-field color="success" label="<$ constantUiMap.fileExplorer.fileName $>" v-model="newFolderName" hide-details class="jh-v-input" dense filled single-line></v-text-field>
+      </v-card-text>
+      <v-card-actions class="px-4">
+        <v-spacer></v-spacer>
+        <v-btn @click="doUiAction('cancleCreate')" :disabled="isDirectoryCreating" depressed small><$ constantUiMap.fileExplorer.cancel $></v-btn>
+        <v-btn color="success" :disabled="!newFolderName || isDirectoryCreating" depressed @click="doUiAction('createDirectory')" small>
+          <v-progress-circular v-if="isDirectoryCreating" indeterminate :size="18" color="primary"></v-progress-circular>
+          {{isDirectoryCreating ? '正在创建' : '<$ constantUiMap.fileExplorer.create $>'}}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-menu>
+  <!-- <<<<<<<<<<<<< 创建文件夹 -->
+</template>
+
+<script>
+  Vue.component("create-new-directory", {
+    vuetify: new Vuetify(),
+    name: 'create-new-directory',
+    template: '#create-new-directory',
+    props: {
+      currentPath: String,
+    },
+    data: () => ({
+      newFolderName: "",
+      isNewFolderDialogShown: false,
+      isDirectoryCreating: false
+    }),
+    methods: {
+      async doUiAction(uiActionId, uiActionData) {
+        switch (uiActionId) {
+          case 'createDirectory':
+            await this.prepareCreateDirectory();
+            await this.doCreateDirectory();
+            await this.clearCreateDirectory();
+            await this.refreshDirectory();
+            break;
+          case 'cancleCreate':
+            await this.cancleCreate();
+            break;
+          default:
+            console.error("[doUiAction] uiActionId not find", { uiActionId });
+            break;
+        }
+      },
+
+      // ---------- 取消创建 uiAction >>>>>>>>>> --------
+      async cancleCreate() {
+        this.newFolderName = "";
+        this.isNewFolderDialogShown = false;
+      },
+      // ---------- <<<<<<<<<<< 取消创建 uiAction  --------
+
+      // ---------- 创建文件夹 uiAction >>>>>>>>>> --------
+      async prepareCreateDirectory() {
+        this.isDirectoryCreating = true;
+      },
+      async doCreateDirectory() {
+        await window.vtoast.loading("创建文件夹");
+        await window.jianghuAxios({
+          data: {
+            appData: {
+              pageId: 'cloud_drive',
+              actionId: 'mkdir',
+              actionData: { path: this.currentPath + this.newFolderName },
+            }
+          }
+        })
+        window.vtoast.success("创建文件夹成功");
+      },
+      async clearCreateDirectory() {
+        this.newFolderName = "";
+        this.isNewFolderDialogShown = false;
+        this.isDirectoryCreating = false;
+      },
+      refreshDirectory() {
+        this.$emit("refresh-directory");
+      },
+      // ---------- <<<<<<<<<<< 创建文件夹 uiAction  --------
+    }
+  });
+</script>

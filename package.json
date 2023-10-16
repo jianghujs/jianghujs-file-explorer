@@ -1,0 +1,47 @@
+{
+  "name": "jianghujs-file-explorer",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "egg": {
+    "declarations": true,
+    "framework": "@jianghujs/jianghu"
+  },
+  "dependencies": {
+    "@jianghujs/jianghu": "4.1.4",
+    "egg": "^2.15.1",
+    "egg-scripts": "^2.11.0"
+  },
+  "devDependencies": {
+    "autod": "^3.0.1",
+    "autod-egg": "^1.1.0",
+    "egg-bin": "^4.11.0",
+    "egg-mock": "^3.21.0",
+    "eslint": "^7.32.0",
+    "eslint-config-egg": "^7.1.0",
+    "eslint-plugin-jsdoc": "^37.6.1"
+  },
+  "engines": {
+    "node": ">=10.0.0"
+  },
+  "scripts": {
+    "start": "egg-scripts start --workers=2 --daemon --port=7218 --title=jianghujs-file-explorer",
+    "stop": "egg-scripts stop --title=jianghujs-file-explorer",
+    "dev": "egg-bin dev --port=7218",
+    "debug": "egg-bin debug",
+    "jianghuConfigImportData": "jianghu jianghuConfigImportData",
+    "jianghuConfigDumpData": "jianghu jianghuConfigDumpData",
+    "test": "npm run lint -- --fix && npm run test-local",
+    "test-local": "egg-bin test",
+    "cov": "egg-bin cov",
+    "lint": "eslint .",
+    "ci": "npm run lint && npm run cov",
+    "autod": "autod"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jianghujs/jianghujs-file-explorer.git"
+  },
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,150 @@
+<template id="breadcrumbs">
+  <!-- 面包屑 >>>>>>>>>>>>> -->
+  <v-row class="ma-0 pa-0">
+    <v-breadcrumbs class="pa-0 jh-file-explorer-breadcrumbs">
+      <v-breadcrumbs-item :disabled="currentPath === '/'" @click="goBack" role="button">
+        <v-icon class="mr-2" color="success">mdi-arrow-left</v-icon>
+        <span class="text-subtitle-2 font-weight-medium success--text">上一级</span>
+      </v-breadcrumbs-item>
+      <!--根目录-->
+      <v-breadcrumbs-item :disabled="currentPath === '/'" @click="doUiAction('changePath', '/')" role="button">
+        <v-icon class="mr-1" color="success">mdi-cloud-circle</v-icon>
+        <span class="text-subtitle-2 font-weight-medium success--text">{{rootDirectoryName}}</span>
+      </v-breadcrumbs-item>
+      <!--路径目录-->
+      <v-breadcrumbs-item
+        v-for="(pathItem, index) in currentPathList"
+        :key="index + '-btn'"
+        @click="doUiAction('changePath', pathItem.path)"
+        role="button"
+        :disabled="index === currentPathList.length - 1">
+        <v-icon color="success">mdi-chevron-right</v-icon>
+        <span class="text-subtitle-2 font-weight-medium success--text">{{ pathItem.name.endsWith('_recycle') ? '回收站' : pathItem.name }}</span>
+      </v-breadcrumbs-item>
+    </v-breadcrumbs>
+  </v-row>
+  <!-- <<<<<<<<<<<<< 面包屑 -->
+</template>
+
+<script>
+  Vue.component("breadcrumbs", {
+    vuetify: new Vuetify(),
+    name: 'breadcrumbs',
+    template: '#breadcrumbs',
+    props: {
+      currentPath: String,
+      rootDirectoryName: String,
+      currentPathIsDir: {
+        type: Boolean,
+        default: false
+      },
+    },
+    data: () => ({
+      currentPathList: []
+    }),
+    created() {
+      this.doUiAction('buildPathList')
+    },
+    watch: {
+      currentPath() {
+        this.doUiAction('buildPathList')
+      }
+    },
+    methods: {
+      async doUiAction(uiActionId, uiActionData) {
+        switch (uiActionId) {
+          case 'buildPathList':
+            await this.buildPathList();
+            break;
+          case 'changePath':
+            await this.changePath(uiActionData);
+            break;
+          case 'goBack':
+            await this.goBack();
+            break;
+          default:
+            console.error("[doUiAction] uiActionId not find", { uiActionId });
+            break;
+        }
+      },
+
+      // ---------- 生成路径列表 uiAction >>>>>>>>>> --------
+      buildPathList() {
+        if (!_.isEmpty(this.currentPath)) {
+          let path = "/";
+          let pathItemList = this.currentPath.split("/").filter(item => !_.isEmpty(item));
+          pathItemList = pathItemList.map((item, index) => {
+            const isLast = index === pathItemList.length - 1;
+            path += item + (!isLast || this.currentPathIsDir ? "/" : "");
+            return {
+              name: item,
+              path
+            };
+          });
+          this.currentPathList = pathItemList;
+        }
+      },
+      // ---------- <<<<<<<<<<< 生成路径列表 uiAction  --------
+
+      // ---------- 改变路径 uiAction >>>>>>>>>> --------
+      changePath(path) {
+        this.$emit('change-path', path + (path.endsWith('/') ? '' : '/'));
+      },
+      // ---------- <<<<<<<<<<< 改变路径 uiAction  --------
+
+      // ---------- 返回上一级 uiAction >>>>>>>>>> --------
+      goBack() {
+        let path = this.currentPath;
+        if (path.endsWith('/')) {
+          path = path.substring(0, path.length - 1);
+        }
+        if (path !== '') {
+          this.doUiAction('changePath', path.substring(0, path.lastIndexOf('/') + 1))
+        } else {
+          this.doUiAction('changePath', '/')
+        }
+      },
+      // ---------- <<<<<<<<<<< 返回上一级 uiAction  --------
+    }
+  })
+</script>
+
+<style>
+  .v-breadcrumbs {
+    margin-top: -3px;
+  }
+
+  .v-breadcrumbs li {
+    font-size: 12px;
+  }
+  .jh-file-explorer-breadcrumbs li {
+    background-color: #E8F5E9;
+    border-radius: 4px;
+    word-break: break-all;
+    min-height: 32px;
+    margin-top: 1px;
+    padding: 0 5px!important;
+  }
+  .jh-file-explorer-breadcrumbs li:first-child {
+    border-radius: 4px;
+    margin-right: 8px;
+    padding: 0 10px!important;
+  }
+  .jh-file-explorer-breadcrumbs li:not(:first-child) {
+    background-color: #E8F5E9;
+    border-radius: 0;
+    word-break: break-all;
+    min-height: 32px;
+    margin-top: 1px;
+  }
+  .jh-file-explorer-breadcrumbs li:nth-child(2) {
+    border-top-left-radius: 4px!important;
+    border-bottom-left-radius: 4px!important;
+    padding-left: 8px!important;
+  }
+  .jh-file-explorer-breadcrumbs li:last-child {
+    border-top-right-radius: 4px!important;
+    border-bottom-right-radius: 4px!important;
+    padding-right: 10px!important;
+  }
+</style>

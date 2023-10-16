@@ -1,0 +1,109 @@
+{% extends 'template/jhTemplateV4.html'%}
+
+{% block vueTemplate %}
+
+<script type="text/html" id="app-template">
+<div>
+  <v-app mobile-breakpoint="sm">
+    <jh-menu />
+    <v-main class="mt-15">
+      <!-- 头部内容 >>>>>>>>>>>>> -->
+      <div class="jh-page-second-bar px-8">
+        <v-row class="align-center">
+          <v-col cols="12" xs="12" sm="12" md="4" xl="3">
+            <div class="py-4 text-body-1 font-weight-bold">网盘
+              <!-- 帮助页按钮 -->
+              <span role="button" class="success--text font-weight-regular jh-font-size-13 ml-2" @click="isHelpPageDrawerShown = true">
+                <v-icon size="13" class="success--text">mdi-help-circle-outline</v-icon>帮助
+              </span>
+            </div>
+          </v-col>
+        </v-row>
+      </div>
+      <!-- <<<<<<<<<<<<< 头部内容 -->
+
+      <!-- 页面主体内容 >>>>>>>>>>>>> -->
+      <div class="jh-page-body-container px-8">
+        <file-browser
+          :operation-config="operationConfig"
+          :accessible-folder="accessibleFolder"
+          :access-path="accessPath"
+          :root-directory="rootDirectory"
+          :root-directory-name="rootDirectoryName"
+          @use-file="useFile"></file-browser>
+      </div>
+      <!-- <<<<<<<<<<<<< 页面主体内容 -->
+
+      <!-- 帮助页抽屉 >>>>>>>>>>>>> -->
+      <v-navigation-drawer v-model="isHelpPageDrawerShown" fixed temporary right width="80%" hide-overlay class="elevation-24">
+        <iframe style="border: 0" :src="`/${appInfo.appId}/pageDoc#1.fileExplorerWithComponent.md`" width="100%"
+                height="100%"></iframe>
+        <v-btn elevation="0" color="success" fab absolute top left small tile class="drawer-close-float-btn"
+               @click="isHelpPageDrawerShown = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-navigation-drawer>
+      <!-- <<<<<<<<<<<<< 帮助页抽屉 -->
+    </v-main>
+  </v-app>
+
+  <jh-toast />
+  <jh-mask />
+  <jh-confirm-dialog />
+
+</div>
+</script>
+
+<div id="app">
+</div>
+
+{% endblock %}
+
+{% block vueScript %}
+
+<!-- 加载页面组件 >>>>>>>>>>>>> -->
+{% include 'component/fileBrowser/fileBrowser.html' %}
+<!-- <<<<<<<<<<<<< 加载页面组件 -->
+
+<script type="module">
+new Vue({
+  el: '#app',
+  template: '#app-template',
+  vuetify: new Vuetify(),
+  data: () => ({
+    isHelpPageDrawerShown: false,
+
+    // ---------- file-browser 配置 >>>>>>>>>>> --------
+    /* 操作开关（不写的属性，默认true）*/
+    operationConfig: { 
+      'createDir': true,
+      'markdown': true,
+      'upload': true,
+      'copy': true,
+      'copyPath': true,
+      'cut': true,
+      'clearRecycle': true,
+      'delete': true,
+      'edit': true,
+      'rename': true,
+      'use': true,
+    },
+
+    accessibleFolder: [{ groupId: "cloudDemo" }],
+    accessPath: "/cloudDemo/",
+    rootDirectory:  "cloudDrive",
+    rootDirectoryName:  "网盘",
+    // ---------- <<<<<<<<<<< file-browser 配置 --------
+  }),
+  async created() {},
+  methods: {
+    useFile(event) {
+      console.log('使用文件', event)
+    }
+  }
+})
+</script>
+
+<style>
+</style>
+{% endblock %}

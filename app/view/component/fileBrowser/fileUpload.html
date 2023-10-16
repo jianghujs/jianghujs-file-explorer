@@ -1,0 +1,281 @@
+<template id="file-upload">
+  <!-- 上传文件 >>>>>>>>>>>>> -->
+  <div>
+    <!-- 选择文件触发器[隐藏掉，用按钮触发] >>>>>>>>>>>>> -->
+    <input v-show="false" ref="inputUpload" type="file" multiple @change="doUiAction('addFile', $event)"/>
+    <!-- <<<<<<<<<<<<< 选择文件触发器 -->
+
+    <!-- 上传文件按钮 >>>>>>>>>>>>> -->
+    <v-btn small v-if="currentPath" depressed @click="$refs.inputUpload.click()" title="Upload Files" :disabled="currentPath === '/'" class="mr-2">
+      <v-icon class="mr-1" small>mdi-folder-upload</v-icon>
+      <$ constantUiMap.fileExplorer.upload $>
+    </v-btn>
+    <!-- <<<<<<<<<<<<< 上传文件按钮 -->
+
+    <!-- 上传文件弹窗 >>>>>>>>>>>>> -->
+    <v-overlay v-if="isUploadDialogShown" z-index="60">
+      <v-card flat light class="jh-file-upload-dialog mx-auto" :loading="isUploading">
+        <!-- ✅header -->
+        <v-toolbar flat dense>
+          <div class="black--text text-subtitle-1 ml-2"><$ constantUiMap.fileExplorer.upload $><$ constantUiMap.fileExplorer.file $>
+          </div>
+          <v-spacer></v-spacer>
+          <v-toolbar-items>
+            <v-btn text @click="isUploadDialogShown = false" >
+              <v-icon class="black--text" size="18">mdi-close</v-icon>
+            </v-btn>
+          </v-toolbar-items>
+        </v-toolbar>
+
+        <!-- ✅分隔线 -->
+        <v-divider class="jh-file-upload-dialog-divider"></v-divider>
+
+        <!-- ✅按钮区 -->
+        <v-card-text>
+          <v-btn color="success" small depressed @click="$refs.inputUpload.click()"
+                 title="<$ constantUiMap.common.select $><$ constantUiMap.fileExplorer.file $>">
+            <v-icon class="mr-1" small>mdi-file-plus</v-icon>
+            <$ constantUiMap.common.select $><$ constantUiMap.fileExplorer.file $>
+          </v-btn>
+          <v-btn small depressed @click="doUiAction('uploadFileList')" class="ml-1" :disabled="!fileList || fileList.length === 0"
+                 title="<$ constantUiMap.fileExplorer.uploadAll $>">
+            <v-icon class="mr-1" small>mdi-file-upload</v-icon>
+            <$ constantUiMap.fileExplorer.uploadAll $>
+          </v-btn>
+          <v-btn small depressed @click="doUiAction('removeAllFile')" class="ml-sm-1 mt-1 mt-sm-0" :disabled="!fileList || fileList.length === 0"
+                 title="<$ constantUiMap.fileExplorer.removeAll $>">
+            <v-icon class="mr-1" small>mdi-file-remove</v-icon>
+            <$ constantUiMap.fileExplorer.removeAll $>
+          </v-btn>
+        </v-card-text>
+
+        <!-- ✅文件列表 -->
+        <v-card-text v-if="fileList.length" class="py-0 files-list-wrapper">
+          <v-list v-if="fileList.length">
+            <v-list-item v-for="(file, index) in fileList" :key="index" class="mb-2">
+              <v-list-item-avatar>
+                <v-img v-if="file.preview" :src="file.preview"></v-img>
+                <v-icon
+                  v-else
+                  v-text="fileIconList[file.extension] || 'mdi-file'"
+                  class="mdi-36px"
+                  color="grey lighten-1"
+                ></v-icon>
+              </v-list-item-avatar>
+              <v-list-item-content>
+                <v-list-item-title v-text="file.name"></v-list-item-title>
+                <v-list-item-subtitle>{{ formatBytes(file.size) }} - {{ file.type }}</v-list-item-subtitle>
+              </v-list-item-content>
+              <v-list-item-action class="d-flex">
+                <v-btn icon @click="doUiAction('removeFile', index)"small>
+                  <v-icon small size="16">mdi-delete-outline</v-icon>
+                </v-btn>
+              </v-list-item-action>
+            </v-list-item>
+          </v-list>
+        </v-card-text>
+
+        <!-- ✅空提示 -->
+        <v-card-text v-else class="py-6 text-center">
+          暂无文件~
+        </v-card-text>
+
+        <!-- ✅分隔线 -->
+        <v-divider class="jh-file-upload-dialog-divider"></v-divider>
+
+        <!-- ✅footer -->
+        <v-card-text class="py-3 d-flex justify-space-between jh-file-upload-dialog-footer">
+          <div>
+            <span><$ constantUiMap.fileExplorer.uploadTo $>:</span>
+            <span class="ml-2">{{ currentPath }}</span>
+          </div>
+          <div>
+            <span v-if="maxUploadFileCount"><$ constantUiMap.fileExplorer.maxFileCount $>: {{ maxUploadFileCount }}</span>
+            <span v-if="maxUploadFileSize"><$ constantUiMap.fileExplorer.maxFileSize $>: {{ formatBytes(maxUploadFileSize) }}</span>
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-overlay>
+    <!-- <<<<<<<<<<<<< 上传文件弹窗 -->
+  </div>
+  <!-- <<<<<<<<<<<<< 上传文件 -->
+</template>
+
+<script>
+  Vue.component("file-upload", {
+    vuetify: new Vuetify(),
+    name: 'file-upload',
+    template: '#file-upload',
+    props: {
+      currentPath: String,
+      fileIconList: Object,
+      rootDirectory: String,
+    },
+    data() {
+      return {
+        //上传限制
+        maxUploadFileCount: 0,
+        maxUploadFileSize: 1024 * 1024 * 1024,
+        maxUploadImageSize: 700 * 1024,
+
+        //文件列表
+        fileList: [],
+
+        //文件上传
+        isUploadDialogShown: false,
+        isUploading: false,
+        progress: 0,
+      };
+    },
+    methods: {
+      async doUiAction(uiActionId, uiActionData) {
+        switch (uiActionId) {
+          case 'addFile':
+            await this.prepareAddFileData(uiActionData);
+            await this.openUploadDialog();
+            await this.checkAndFilterExceedMaxSizeImage();
+            await this.checkIsExceedMaxUploadCount();
+            await this.addFileToFileList();
+            await this.clearAddFile();
+            break;
+          case 'removeFile':
+            await this.removeFile(uiActionData);
+            break;
+          case 'removeAllFile':
+            await this.removeAllFile();
+            break;
+          case 'uploadFileList':
+            await this.doUploadFileList();
+            await this.closeUploadDialog();
+            await this.refreshDirectory();
+            break;
+          default:
+            console.error("[doUiAction] uiActionId not find", { uiActionId });
+            break;
+        }
+      },
+
+      // ---------- 添加文件 uiAction >>>>>>>>>> --------
+      async prepareAddFileData(event) {
+        this.addFileList = Array.from(event.target.files);
+      },
+      async openUploadDialog() {
+        this.isUploadDialogShown = true;
+      },
+      async checkAndFilterExceedMaxSizeImage() {
+        if (this.maxUploadImageSize) {
+          const isExceedMaxSize = this.addFileList.some(file => this.checkIsImg(file.name) && file.size > this.maxUploadImageSize);
+          if (isExceedMaxSize) {
+            window.vtoast.fail(`部分图片文件大于${this.maxUploadImageSize}, 请重新压缩再上传`);
+            this.addFileList = this.addFileList.filter(file => !this.checkIsImg(file.name) || this.checkIsImg(file.name) && file.size <= this.maxUploadImageSize);
+          }
+        }
+      },
+      async checkIsExceedMaxUploadCount() {
+        if (this.maxUploadFileCount && this.fileList.length + this.addFileList.length > this.maxUploadFileCount) {
+          this.addFileList = this.addFileList.slice(0, this.maxUploadFileCount - this.fileList.length);
+        }
+      },
+      async addFileToFileList() {
+        this.fileList.push(...this.addFileList);
+      },
+      async clearAddFile() {
+        this.addFileList = []
+        this.$refs.inputUpload.value = "";
+      },
+      // ---------- <<<<<<<<<<< 添加文件 uiAction  --------
+
+      // ---------- 移除文件 uiAction >>>>>>>>>> --------
+      removeFile(fileIndex) {
+        this.fileList.splice(fileIndex, 1);
+      },
+      // ---------- <<<<<<<<<<< 移除文件 uiAction  --------
+
+      // ---------- 移除全部文件 uiAction >>>>>>>>>> --------
+      removeAllFile() {
+        this.fileList = [];
+      },
+      // ---------- <<<<<<<<<<< 移除全部文件 uiAction  --------
+
+      // ---------- 上传全部文件 uiAction >>>>>>>>>> --------
+      async doUploadFileList() {
+        this.isUploading = true;
+        await window.vtoast.loading("正在上传文件");
+        for (let file of this.fileList) {
+          await this.prepareUploadFile(file);
+          await this.doUploadFile();
+        }
+        await window.vtoast.success("上传文件成功");
+      },
+      async prepareUploadFile(funObj) {
+        this.uploadFileItem = funObj;
+        this.uploadFileItemName = funObj.name;
+      },
+      async doUploadFile() {
+        window.vtoast.loading(`${this.uploadFileItemName} <$ constantUiMap.fileExplorer.uploadProgress $>: 0.00%`);
+        await window.jianghuAxios.httpUploadByStream({
+          file: this.uploadFileItem,
+          filenameStorage: this.uploadFileItemName,
+          fileDirectory: `/${this.rootDirectory}${this.currentPath}`,
+          onProgress: (total, loaded) => {
+            this.progress = Number((loaded * 100 / total).toFixed(2));
+            window.vtoast.loading(`${this.uploadFileItemName} <$ constantUiMap.fileExplorer.uploadProgress $>: ${this.progress}%`);
+            if (loaded === total) {
+              window.vtoast.success(`${this.uploadFileItemName} <$ constantUiMap.fileExplorer.uploadProgress $>: 100%`);
+            }
+          }
+        })
+      },
+      closeUploadDialog() {
+        this.isUploadDialogShown = false;
+        this.isUploading = false;
+        this.fileList = [];
+      },
+      refreshDirectory() {
+        this.$emit("refresh-directory");
+      },
+      // ---------- <<<<<<<<<<< 上传全部文件 uiAction  --------
+
+      // ---------- 公共方法 >>>>>>>>> --------
+      checkIsImg(filename) {
+        return /\.(jpg|jpeg|png|GIF|JPG|PNG)$/.test(filename);
+      },
+      formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+      },
+      // ---------- <<<<<<<<<<< 公共方法 --------
+    },
+  });
+</script>
+
+<style>
+  /* ---------- 上传文件弹窗 >>>>>>>>>> -------- */
+  .jh-file-upload-dialog {
+    width: 600px;
+  }
+  .jh-file-upload-dialog-divider{
+    border-color: #eff2f5 !important;
+    opacity:0.8;
+  }
+  .jh-file-upload-dialog-footer{
+    color:#A1A5B7 !important;
+  }
+  .jh-file-upload-dialog .v-list-item{
+    background-color: #f5f8fa;
+    border-radius: 6px;
+  }
+  /* ---------- <<<<<<<<<<< 上传文件弹窗 -------- */
+  
+  /* ---------- 移动端 >>>>>>>>>> -------- */
+  @media screen and (max-width: 500px) {
+    .jh-file-upload-dialog {
+      max-width: 90vw;
+    }
+  }
+  /* ---------- <<<<<<<<<<< 移动端 -------- */
+</style>

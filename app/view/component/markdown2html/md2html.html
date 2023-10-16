@@ -1,0 +1,185 @@
+<!--md2html.html start-->
+<!--仅限于jh-tag两层层级嵌套-->
+<script src="/<$ ctx.app.config.appId $>/public/plugins/editor.md/lib/marked.min.js"></script>
+<template id="md2html">
+  <div>
+    <template v-for="(item, index) of currentArticleContentSection">
+      <!--文字段落 >>>>>>>>>>>>> -->
+      <template v-if="item.type === 'text'">
+        <!--段落包含子项 >>>>>>>>>>>>> -->
+        <template v-if="item.children">
+          <template v-for="(child, cindex) of item.children">
+            <!--子项：文字段落 >>>>>>>>>>>>> -->
+            <template v-if="child.type === 'text'">
+              <div ref="artContent" class="content pa-5 markdown-body editormd-html-preview"
+                   :id="'artContent' + Math.floor(Math.random() * 9999)" :data-content="child.content">
+              </div>
+            </template>
+            <!--<<<<<<<<<<<<<<<<子项：文字段落 -->
+            <!--子项：文章列表段落（jh-articleQuery） >>>>>>>>>>>>> -->
+            <template v-else-if="child.type === 'articleQuery'">
+              <article-query-template :params="child.params"></article-query-template>
+            </template>
+            <!--<<<<<<<<<<<<<<<<子项：文章列表段落（jh-articleQuery） -->
+          </template>
+        </template>
+        <!--<<<<<<<<<<<<<<<<段落包含子项 -->
+        <!--段落不包含子项 >>>>>>>>>>>>> -->
+        <template v-else>
+          <div ref="artContent" class="content pa-5 markdown-body editormd-html-preview"
+                :id="'artContent' + Math.floor(Math.random() * 9999)" :data-content="item.content">
+          </div>
+        </template>
+        <!--<<<<<<<<<<<<< 段落不包含子项-->
+      </template>
+      <!--<<<<<<<<<<<<<< 文字段落 -->
+      <!--切换标签段落（jh-toggle） >>>>>>>>>>>>> -->
+      <template v-if="item.type === 'toggle'">
+        <toggle-template :params="item.params" @open="renderMarkdown">
+          <!--段落包含子项 >>>>>>>>>>>>> -->
+          <template v-if="item.children">
+            <template v-for="(child, cIndex) of item.children">
+              <!--子项：文字段落 >>>>>>>>>>>>> -->
+              <template v-if="child.type === 'text'">
+                <div ref="artContent" class="content pa-5 markdown-body editormd-html-preview"
+                     :id="'artContent' + Math.floor(Math.random() * 9999)" :data-content="child.content">
+                </div>
+              </template>
+              <!--<<<<<<<<<<<<<<<<子项：文字段落 -->
+              <!--子项：文章列表段落（jh-articleQuery）>>>>>>>>>>>>> -->
+              <template v-else-if="child.type === 'articleQuery'">
+                <article-query-template :params="child.params"></article-query-template>
+              </template>
+              <!--<<<<<<<<<<<<<<<<子项：文章列表段落（jh-articleQuery）-->
+            </template>
+          </template>
+          <!--<<<<<<<<<<<<<<<<段落包含子项 -->
+          <!--段落不包含子项 >>>>>>>>>>>>> -->
+          <template v-else>
+            <div ref="artContent" class="content pa-5 markdown-body editormd-html-preview"
+                 :id="'artContent' + Math.floor(Math.random() * 9999)" :data-content="item.content">
+            </div>
+          </template>
+          <!--<<<<<<<<<<<<< 段落不包含子项-->
+        </toggle-template>
+      </template>
+      <!--<<<<<<<<<<<<切换标签段落（jh-toggle） -->
+      <!--文章列表段落（jh-articleQuery） >>>>>>>>>>>>> -->
+      <template v-if="item.type === 'articleQuery'">
+        <article-query-template :params="item.params"></article-query-template>
+      </template>
+      <!--<<<<<<<<<<<<文章列表段落（jh-articleQuery） -->
+      <!--pdf段落（jh-pdf-viewer） >>>>>>>>>>>>> -->
+      <template v-if="item.type === 'pdfViewer'">
+        <pdf-viewer :params="item.params"></pdf-viewer>
+      </template>
+      <!--<<<<<<<<<<<<pdf段落（jh-pdf-viewer） -->
+    </template>
+  </div>
+</template>
+{% include 'component/markdown2html/jhTagEngine.html' %}
+{% include 'component/markdown2html/toggleTemplate.html' %}
+{% include 'component/markdown2html/articleQueryTemplate.html' %}
+{% include 'component/markdown2html/articleMarkdownEngine.html' %}
+{% include 'component/markdown2html/pdfViewerTemplate.html' %}
+<script>
+Vue.component("md2html", {
+  vuetify: new Vuetify(),
+  name: 'md2html',
+  props: ['articleContent'],
+  data: () => ({
+    currentArticleContentSection: []
+  }),
+  created() {
+    this.jhTagEngine = new JhTagEngine();
+    if(this.articleContent) {
+      this.renderContent();
+    }
+  },
+  watch: {
+    articleContent: {
+      handler(value) {
+        this.clearOldContent();
+        if(value) {
+          this.renderContent();
+        }
+      }
+    }
+  },
+  methods: {
+    // --- 清理UI显示内容 >>>>>>>>>>> --------------------
+    clearOldContent() {
+      const artContentRefs = this.$refs.artContent;
+      if (artContentRefs && artContentRefs.length) {
+        artContentRefs.forEach(artContent => {
+          artContent.innerHTML = "";
+        })
+      }
+      this.currentArticleContentSection = [];
+    },
+    // --- <<<<<<<<<<<< 清理UI显示内容 --------------------
+    // --- 显示markdown内容 >>>>>>>>>>> --------------------
+    renderMarkdown () {
+      const artContentRefs = this.$refs.artContent;
+      if (artContentRefs && artContentRefs.length) {
+        setTimeout(() => {
+          this.markdownToHTML(artContentRefs);
+          this.isContentLoading = false;
+        }, 300)
+      } else {
+        requestAnimationFrame(() => {
+          this.renderContent();
+        })
+      }
+    },
+    // --- <<<<<<<<<<<< 显示markdown内容 --------------------
+    // --- markdown分段转换成html并显示 >>>>>>>>>>> --------------------
+    markdownToHTML(artContentRefs) {
+      artContentRefs.forEach(artContent => {
+        const contentText = artContent.dataset.content;
+        artContent.innerHTML = ArticleMarkdownEngine.md2html(contentText);
+      })
+      this.$emit('complete')
+    },
+    // --- <<<<<<<<<<<< markdown分段转换成html并显示 --------------------
+    // --- 显示内容 >>>>>>>>>>> --------------------
+    async renderContent() {
+      const newArticleContent = this.articleContent.replace(/\/__appId__\/upload\//g, '/<$ ctx.app.config.appId $>/upload/')
+      this.currentArticleContentSection = await this.jhTagEngine.jhTagTemplateHandler(newArticleContent);
+      this.renderMarkdown();
+    },
+    // --- <<<<<<<<<<<< 显示内容 --------------------
+    dayjs: dayjs
+  },
+  template: '#md2html'
+})
+</script>
+<style scope>
+.articleOtherInfoBox span:last-child {
+  padding: 0 20px;
+}
+.articleOtherInfoBox span {
+  color: #666666;
+}
+.editormd-preview-container ol.linenums li, .editormd-html-preview ol.linenums li {
+    list-style-type: none;
+}
+.editormd-preview-container ol.linenums, .editormd-html-preview ol.linenums {
+    color: #999;
+    padding-left: 0;
+}
+
+.markdown-body pre {
+    font-family: unset;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.markdown-body pre code {
+    background-color: unset !important;
+    font-family: unset !important;
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+</style>
+<!--md2html.html end-->
