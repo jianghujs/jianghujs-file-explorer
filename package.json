@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@jianghujs/jianghu": "5.0.7",
+    "dotenv": "^16.3.1",
     "egg": "^2.15.1",
     "egg-scripts": "^2.11.0"
   },
